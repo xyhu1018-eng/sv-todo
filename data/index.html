@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SV ToDo</title>
+  <!--个别特殊的 js (如 用于调试、跳转到低版本浏览器警告页 之类的)-->
+  <link rel="stylesheet" href="styles/index.css">
+  <style>
+    /*标签*/
+  </style>
+  <!--一些 js 库,注意依赖顺序-->
+  <script>
+    //少部分本页面的js
+  </script>
+</head>
+
+<body>
+  <div class="page">
+    <h1>SV ToDo 表格</h1>
+    <section class="controls">
+      <div class="filter-group">
+
+        <div class="filter-block">
+          <span class="filter-label">季节：</span>
+          <div id="filter-season-group" class="checkbox-group">
+            <!-- JS 动态填充复选框，默认全部勾选 -->
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <span class="filter-label">物品类型：</span>
+          <div id="filter-category-group" class="checkbox-group">
+            <!-- JS 动态填充复选框 -->
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <span class="filter-label">需求类型：</span>
+          <div id="filter-need-group" class="checkbox-group">
+            <!-- JS 动态填充复选框 -->
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <span class="filter-label">其他：</span>
+          <label class="checkbox-item">
+            <input type="checkbox" id="toggle-favorite" checked>最爱
+          </label>
+        </div>
+
+      </div>
+
+      <div class="actions">
+        <button id="reset-all-btn">重置全部进度</button>
+      </div>
+
+      <div class="tip">
+        复选框默认全选，可多选/全不选；需求格子：0/5 → … → 5/5 → 再点回 0。
+        行内“重置本行”只清除该行，整行完成时会置底。
+      </div>
+    </section>
+
+    <section class="table-wrapper">
+      <table id="items-table">
+        <thead>
+          <tr id="table-header-row"><!-- 表头由 JS 动态生成：物品 / 季节 / 类型 / 各需求类型 / 总需求 --></tr>
+        </thead>
+        <tbody id="items-tbody"><!-- 数据由 JS 渲染 --></tbody>
+      </table>
+    </section>
+
+    <section class="notes-panel">
+      <h2>备注</h2>
+      <div id="global-notes" class="notes-container">
+        <div id="global-notes-list" class="notes-list">
+          <!-- JS 渲染全局备注 -->
+        </div>
+        <div class="note-add-box">
+          <input
+            id="global-note-input"
+            type="text"
+            placeholder="添加备注，例如：葡萄干需求=葡萄多 5 个"
+          >
+          <button id="global-note-add-btn">添加</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="scripts/data.js" defer></script>
+  <script src="scripts/index.js" defer></script>
+  <script>
+    //大部分本页面的 js
+  </script>
+</body>
+
+</html>
