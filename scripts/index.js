@@ -362,37 +362,43 @@ function renderTable() {
   let filteredItems = items.filter(item => {
     const itemSeasons = getSeasonTokens(item);
 
-    // 1. 处理季节过滤
-    if (selectedSeasons.length > 0) {
-      // 如果是四季作物，自动通过
+    // 1. 季节过滤：
+    //    - 如果勾了季节 && 物品本身写了季节：
+    //         要么是“四季”，要么与勾选项有交集；
+    //    - 如果物品季节为空：不参与季节过滤（总是通过）
+    if (selectedSeasons.length > 0 && itemSeasons.length > 0) {
       if (!itemSeasons.includes(ALL_SEASONS_TOKEN)) {
-        // 否则要求：itemSeasons 和 selectedSeasons 至少有一个交集
-        const intersects = itemSeasons.some(s => selectedSeasons.includes(s));
+        const intersects = itemSeasons.some(s =>
+          selectedSeasons.includes(s)
+        );
         if (!intersects) return false;
       }
     }
-    // 2. 物品类型过滤（保持原来逻辑）
+
+    // 2. 物品类型过滤：
+    //    - 勾了类型 && 物品有类型标签时：要有交集
+    //    - 物品类型为空：不参与过滤（总是通过）
     if (selectedCategories.length > 0) {
       const itemCats = getCategoryTokens(item);
-      // 要求 itemCats 与 selectedCategories 至少有一个交集
-      const catIntersects = itemCats.some(c =>
-        selectedCategories.includes(c)
-      );
-      if (!catIntersects) return false;
+      if (itemCats.length > 0) {
+        const catIntersects = itemCats.some(c =>
+          selectedCategories.includes(c)
+        );
+        if (!catIntersects) return false;
+      }
     }
 
-    // 3. 需求类型过滤（保持你现在的写法）
-    if (selectedNeedTypes.length > 0) {
-      const hasNeed = selectedNeedTypes.some(
-        type => (item.needs[type] || 0) > 0
-      );
-      if (!hasNeed) return false;
-    } else {
+    // 3. 需求类型过滤：
+    //    - 至少要勾选一个需求类型，否则直接不显示任何行
+    //    - 不再根据“有没有 >0 的需求”来筛掉物品，
+    //      这样名字刚录完、需求还没填，或者只有 x，也能显示出来。
+    if (selectedNeedTypes.length === 0) {
       return false;
     }
 
     return true;
   });
+
 
   filteredItems.sort((a, b) => {
     const aCompleted = isItemCompleteUnderFilter(a, selectedNeedTypes);
