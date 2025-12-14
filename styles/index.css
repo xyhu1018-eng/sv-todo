@@ -265,3 +265,122 @@ td.total-cell {
   padding: 2px 6px;
   font-size: 0.75rem;
 }
+
+/* ===== 生成面板（献祭/任务） ===== */
+.gen-panels {
+  margin: 10px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gen-panel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.gen-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.panel-actions {
+  margin: 8px 0 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.panel-actions button {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid #d0d0d0;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-block {
+  border-top: 1px dashed #e5e5e5;
+  padding-top: 8px;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.group-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.group-actions button {
+  padding: 2px 6px;
+  font-size: 0.75rem;
+}
+
+/* ===== 物品备注提示（下划线） ===== */
+.item-name {
+  position: relative;
+  text-align: left;
+}
+
+.item-name.has-note .name-text {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* ===== 需求格子右上角小三角（用于显示来源） ===== */
+.need-cell {
+  position: relative;
+}
+
+.cell-info {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-top: 8px solid rgba(120,120,120,0.45);
+  cursor: pointer;
+}
+
+.cell-info:hover {
+  border-top-color: rgba(120,120,120,0.75);
+}
+
+/* ===== tooltip ===== */
+.tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: min(320px, 92vw);
+  background: rgba(30,30,30,0.95);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+
+.tooltip.hidden {
+  display: none;
+}
