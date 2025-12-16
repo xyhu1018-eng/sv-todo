@@ -191,7 +191,7 @@ const DONATION_BUNDLE_GROUPS = [
           { name: '桃子', count: 1 },
           { name: '石榴', count: 1 },
           { name: '樱桃', count: 1 },
-        ]
+        ],
         notes: [
           { item: '牛奶', text: '用于制作奶酪' },
           { item: '羊奶', text: '用于制作山羊奶酪' },
@@ -333,7 +333,7 @@ const DONATION_BUNDLE_GROUPS = [
           { name: '任意鱼', count: 1 },
           { name: '煎鸡蛋', count: 1 },
           { name: '蛋（白色）', count: 1 },
-        ]
+        ],
         notes: [
           { item: '海草', text: '用于制作生鱼寿司' },
           { item: '大米', text: '用于制作生鱼寿司' },

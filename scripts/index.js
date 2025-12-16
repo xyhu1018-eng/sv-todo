@@ -252,11 +252,6 @@ async function loadItemsFromCSV() {
     const tags = Array.from(remarkRaw)
       .filter(ch => ITEM_TAG_DEFS && ITEM_TAG_DEFS[ch])
       .filter((v, i, a) => a.indexOf(v) === i);
-    
-    //新增：baseNeeds（CSV 不再手填“献祭/任务”，这里把它们清 0）
-    const baseNeeds = { ...needs };
-    baseNeeds['献祭'] = 0;
-    baseNeeds['任务'] = 0;
 
     //新增：从 CSV 读备注
     const noteInfo = parseItemNote(record.note);
