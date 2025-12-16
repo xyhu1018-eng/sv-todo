@@ -738,11 +738,13 @@ function renderTableInto(tbodyId, headerRowId, list) {
           const info = document.createElement('div');
           info.className = 'cell-info';
 
-          bindTooltipInteractions(triEl, () => buildDonationSourceTextForItem(item.name));
+          // triEl 不存在：直接把 tooltip 绑定到 info 上即可
+          bindTooltipInteractions(info, () => tip);
 
           td.appendChild(info);
         }
       }
+
 
       tr.appendChild(td);
     });
