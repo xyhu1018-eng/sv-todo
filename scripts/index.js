@@ -58,6 +58,44 @@ function hideTooltip() {
   el.classList.add('hidden');
 }
 
+function bindTooltipInteractions(anchorEl, getText) {
+  if (!anchorEl) return;
+
+  const isDesktopHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // 桌面：悬停显示，移开消失
+  if (isDesktopHover) {
+    anchorEl.addEventListener('mouseenter', (e) => {
+      const text = typeof getText === 'function' ? getText() : getText;
+      if (!text) return;
+      showTooltipNearEl(text, anchorEl);
+    });
+    anchorEl.addEventListener('mouseleave', () => hideTooltip());
+    return;
+  }
+
+  // 手机：长按显示，松手消失
+  let pressTimer = null;
+  const start = () => {
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      const text = typeof getText === 'function' ? getText() : getText;
+      if (!text) return;
+      showTooltipNearEl(text, anchorEl);
+    }, 350);
+  };
+  const end = () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+    hideTooltip();
+  };
+
+  anchorEl.addEventListener('touchstart', (e) => { e.stopPropagation(); start(); }, { passive: true });
+  anchorEl.addEventListener('touchend', end, { passive: true });
+  anchorEl.addEventListener('touchcancel', end, { passive: true });
+}
+
+
 // =============== 小工具函数 ===============
 
 function getCheckedValues(containerId) {
@@ -623,10 +661,7 @@ function renderTableInto(tbodyId, headerRowId, list) {
 
     if (item.note) {
       nameTd.classList.add('has-note');
-      nameSpan.addEventListener('click', (e) => {
-        e.stopPropagation();           // 防止立刻触发 document.click 把 tooltip 关掉
-        showTooltipNearEl(item.note, nameSpan);
-      });
+      bindTooltipInteractions(nameSpan, () => item.note);
     }
 
     nameTd.appendChild(nameSpan);
@@ -695,10 +730,7 @@ function renderTableInto(tbodyId, headerRowId, list) {
           const info = document.createElement('div');
           info.className = 'cell-info';
 
-          info.addEventListener('click', (e) => {
-            e.stopPropagation(); // 不要触发短按+1
-            showTooltipNearEl(tip, info);
-          });
+          bindTooltipInteractions(triEl, () => buildDonationSourceTextForItem(item.name));
 
           td.appendChild(info);
         }

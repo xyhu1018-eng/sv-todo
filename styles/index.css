@@ -201,6 +201,30 @@ td.total-cell {
   }
 }
 
+table {
+  table-layout: fixed;
+}
+
+/* 默认仍然不换行（保持你原逻辑） */
+th, td {
+  white-space: nowrap;
+}
+
+/* 仅前三列允许换行 + 限宽 */
+td.item-name, th.col-item,
+td.col-season, th.col-season,
+td.col-category, th.col-category {
+  white-space: normal;
+  word-break: break-all;   /* 中文/混合字符强制换行更稳 */
+  line-height: 1.2;
+}
+
+/* 你要“三个字左右”宽度：季节/类型更窄，物品略宽一点更好读 */
+td.col-season, th.col-season { width: 3.5em; }
+td.col-category, th.col-category { width: 3.5em; }
+td.item-name, th.col-item { width: 6em; }
+
+
 /* Notes*/
 .notes-panel {
   margin-top: 12px;
