@@ -501,9 +501,14 @@ function renderHeaderTo(headerRowId, selectedNeedTypes) {
   if (!headerRow) return;
   headerRow.innerHTML = '';
 
-  ['物品', '季节', '类型'].forEach(text => {
+  [
+    { text: '物品', className: 'col-item' },
+    { text: '季节', className: 'col-season' },
+    { text: '类型', className: 'col-category' }
+  ].forEach(({ text, className }) => {
     const th = document.createElement('th');
     th.textContent = text;
+    th.className = className;
     headerRow.appendChild(th);
   });
 
@@ -654,6 +659,7 @@ function renderTableInto(tbodyId, headerRowId, list) {
     // 物品名
     const nameTd = document.createElement('td');
     nameTd.classList.add('item-name');
+    nameTd.classList.add('col-item');
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'name-text';
@@ -668,10 +674,12 @@ function renderTableInto(tbodyId, headerRowId, list) {
     tr.appendChild(nameTd);
 
     const seasonTd = document.createElement('td');
+    seasonTd.classList.add('col-season');
     seasonTd.textContent = item.season || '';
     tr.appendChild(seasonTd);
 
     const catTd = document.createElement('td');
+    catTd.classList.add('col-category');
     catTd.textContent = item.category || '';
     tr.appendChild(catTd);
 
