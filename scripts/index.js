@@ -13,6 +13,7 @@ let selectedQuestIds = new Set();
 // 反向索引：用于“来源 tooltip”
 let donationSourcesByItem = new Map(); // itemName -> [{groupName,bundleName,count}]
 let questSourcesByItem = new Map();    // itemName -> [{groupName,questName,count}]
+let donationNotesByItem = new Map(); // itemName -> [text,text...]
 
 // ===== tooltip =====
 function getTooltipEl() {
@@ -207,6 +208,14 @@ function parseCSV(text) {
   });
 }
 
+function parseItemNote(raw) {
+  const text = (raw || '').trim();
+  return {
+    text,
+    params: null, // 以后扩展：结构化参数放这里
+  };
+}
+
 async function loadItemsFromCSV() {
   const res = await fetch(ITEMS_CSV_PATH);
   const text = await res.text();
@@ -215,22 +224,42 @@ async function loadItemsFromCSV() {
 
   items = records.map((record, index) => {
     const needs = {};
+    const baseNeeds = {};   //新增：基线需求
     const done = {};
 
     DEMAND_TYPES.forEach(type => {
+      //动态列：不从 CSV 读取
+      if (type === '献祭' || type === '任务') {
+        needs[type] = 0;
+        baseNeeds[type] = 0;
+        done[type] = 0;
+        return;
+      }
+
       const colName = 'need_' + type;
       const raw = (record[colName] || '').trim();
 
-      if (raw.toLowerCase() === 'x') {
-        needs[type] = 'x'; // 特殊：无限需求
-        done[type] = 0;
-      } else {
-        const n = parseInt(raw || '0', 10);
-        needs[type] = Number.isNaN(n) ? 0 : n;
-        done[type] = 0;
-      }
+      // 这里保留你现有的数字解析逻辑
+      const n = parseInt(raw || '0', 10);
+      const v = Number.isNaN(n) ? 0 : n;
+
+      needs[type] = v;
+      baseNeeds[type] = v;
+      done[type] = 0;
     });
 
+    const remarkRaw = (record.remark || '').trim().toLowerCase();
+    const tags = Array.from(remarkRaw)
+      .filter(ch => ITEM_TAG_DEFS && ITEM_TAG_DEFS[ch])
+      .filter((v, i, a) => a.indexOf(v) === i);
+    
+    //新增：baseNeeds（CSV 不再手填“献祭/任务”，这里把它们清 0）
+    const baseNeeds = { ...needs };
+    baseNeeds['献祭'] = 0;
+    baseNeeds['任务'] = 0;
+
+    //新增：从 CSV 读备注
+    const noteInfo = parseItemNote(record.note);
 
     return {
       id: 'row_' + index,
@@ -238,12 +267,17 @@ async function loadItemsFromCSV() {
       season: record.season || '',
       category: record.category || '',
       favorite: record.favorite || '',
+      remark: remarkRaw,
+      tags,
       needs,
-      baseNeeds, // 新增
+      baseNeeds,
+      note: noteInfo.text,
+      noteParams: noteInfo.params,
       done
     };
   });
 }
+
 
 function saveItems() {
   // 暂时禁用存储：留空，方便以后恢复
@@ -264,9 +298,11 @@ function saveNotes() {
 function computeDonationNeedsAndSources() {
   const needMap = new Map();
   const srcMap = new Map();
+  const noteMap = new Map(); // 新增：收集 notes
 
   if (typeof DONATION_BUNDLE_GROUPS === 'undefined') {
     donationSourcesByItem = new Map();
+    donationNotesByItem = new Map();
     return needMap;
   }
 
@@ -287,12 +323,24 @@ function computeDonationNeedsAndSources() {
           count
         });
       });
+
+      // 新增：把 bundle.notes 汇总到 noteMap
+      (bundle.notes || []).forEach(n => {
+        const itemName = (n.item || '').trim();
+        const text = (n.text || '').trim();
+        if (!itemName || !text) return;
+
+        if (!noteMap.has(itemName)) noteMap.set(itemName, []);
+        noteMap.get(itemName).push(`【${group.name} / ${bundle.name}】${text}`);
+      });
     });
   });
 
   donationSourcesByItem = srcMap;
+  donationNotesByItem = noteMap; // 新增
   return needMap;
 }
+
 
 function computeQuestNeedsAndSources() {
   const needMap = new Map();
@@ -331,6 +379,7 @@ function recomputeDynamicNeeds() {
   // 1) 恢复基线
   items.forEach(item => {
     DEMAND_TYPES.forEach(type => {
+      if (type === '献祭' || type === '任务') return; //静态恢复不碰动态列
       if (item.baseNeeds && type in item.baseNeeds) {
         item.needs[type] = item.baseNeeds[type];
       }
@@ -414,8 +463,9 @@ function renderFilterOptions() {
 
 // =============== 表头渲染 ===============
 
-function renderHeader(selectedNeedTypes) {
-  const headerRow = document.getElementById('table-header-row');
+function renderHeaderTo(headerRowId, selectedNeedTypes) {
+  const headerRow = document.getElementById(headerRowId);
+  if (!headerRow) return;
   headerRow.innerHTML = '';
 
   ['物品', '季节', '类型'].forEach(text => {
@@ -424,14 +474,13 @@ function renderHeader(selectedNeedTypes) {
     headerRow.appendChild(th);
   });
 
-  // 只显示被勾选的需求类型列
   selectedNeedTypes.forEach(type => {
     const th = document.createElement('th');
     th.textContent = type;
     headerRow.appendChild(th);
   });
 
-  //“最爱”列（按开关）
+  // “最爱”列（按开关）
   const favToggle = document.getElementById('toggle-favorite');
   const showFavorite = !favToggle || favToggle.checked;
   if (showFavorite) {
@@ -447,6 +496,11 @@ function renderHeader(selectedNeedTypes) {
   const actionTh = document.createElement('th');
   actionTh.textContent = '操作';
   headerRow.appendChild(actionTh);
+
+  // 新增：标记列（显示 x/y → 不卖/不留）
+  const tagTh = document.createElement('th');
+  tagTh.textContent = '标记';
+  headerRow.appendChild(tagTh);
 }
 
 // =============== 全局备注渲染 ===============
@@ -496,57 +550,60 @@ function renderGlobalNotes() {
 // =============== 表格渲染 ===============
 
 function renderTable() {
-  const tbody = document.getElementById('items-tbody');
+  // 分组：无 tags 的进主表；有 tags 的进隐藏表
+  const normalItems = items.filter(it => !it.tags || it.tags.length === 0);
+  const hiddenItems = items.filter(it => it.tags && it.tags.length > 0);
+
+  // 1) 主表
+  renderTableInto('items-tbody', 'table-header-row', normalItems);
+
+  // 2) 隐藏表：只有展开时才渲染
+  const hiddenWrap = document.getElementById('hidden-items-wrap');
+  const isOpen = hiddenWrap && hiddenWrap.style.display !== 'none';
+  if (isOpen) {
+    renderTableInto('hidden-items-tbody', 'hidden-table-header-row', hiddenItems);
+  }
+}
+
+function renderTableInto(tbodyId, headerRowId, list) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   const selectedSeasons = getCheckedValues('filter-season-group');
   const selectedCategories = getCheckedValues('filter-category-group');
   const selectedNeedTypes = getCheckedValues('filter-need-group');
 
-  // 每次渲染表格时重画表头
-  renderHeader(selectedNeedTypes);
+  // 画对应表头
+  renderHeaderTo(headerRowId, selectedNeedTypes);
 
-  let filteredItems = items.filter(item => {
+  // === 过滤（沿用你现有逻辑）===
+  let filteredItems = list.filter(item => {
+    // 需求类型至少选一个
+    if (selectedNeedTypes.length === 0) return false;
+
+    // 季节过滤（你目前那套 token 逻辑）
     const itemSeasons = getSeasonTokens(item);
-
-    // 1. 季节过滤：
-    //    - 如果勾了季节 && 物品本身写了季节：
-    //         要么是“四季”，要么与勾选项有交集；
-    //    - 如果物品季节为空：不参与季节过滤（总是通过）
     if (selectedSeasons.length > 0 && itemSeasons.length > 0) {
       if (!itemSeasons.includes(ALL_SEASONS_TOKEN)) {
-        const intersects = itemSeasons.some(s =>
-          selectedSeasons.includes(s)
-        );
+        const intersects = itemSeasons.some(s => selectedSeasons.includes(s));
         if (!intersects) return false;
       }
     }
 
-    // 2. 物品类型过滤：
-    //    - 勾了类型 && 物品有类型标签时：要有交集
-    //    - 物品类型为空：不参与过滤（总是通过）
+    // 类型过滤（你那套多类型 token 逻辑）
     if (selectedCategories.length > 0) {
       const itemCats = getCategoryTokens(item);
       if (itemCats.length > 0) {
-        const catIntersects = itemCats.some(c =>
-          selectedCategories.includes(c)
-        );
+        const catIntersects = itemCats.some(c => selectedCategories.includes(c));
         if (!catIntersects) return false;
       }
-    }
-
-    // 3. 需求类型过滤：
-    //    - 至少要勾选一个需求类型，否则直接不显示任何行
-    //    - 不再根据“有没有 >0 的需求”来筛掉物品，
-    //      这样名字刚录完、需求还没填，或者只有 x，也能显示出来。
-    if (selectedNeedTypes.length === 0) {
-      return false;
     }
 
     return true;
   });
 
-
+  // 排序：未完成在前，完成在后
   filteredItems.sort((a, b) => {
     const aCompleted = isItemCompleteUnderFilter(a, selectedNeedTypes);
     const bCompleted = isItemCompleteUnderFilter(b, selectedNeedTypes);
@@ -554,57 +611,31 @@ function renderTable() {
     return aCompleted ? 1 : -1;
   });
 
+  // === 渲染每一行（基本照搬你原 renderTable 的 forEach 内容）===
   filteredItems.forEach(item => {
     const tr = document.createElement('tr');
-
     if (isItemCompleteUnderFilter(item, selectedNeedTypes)) {
       tr.classList.add('row-complete');
     }
 
-  const nameTd = document.createElement('td');
-  nameTd.classList.add('item-name');
+    // 物品名
+    const nameTd = document.createElement('td');
+    nameTd.classList.add('item-name');
 
-  const nameSpan = document.createElement('span');
-  nameSpan.className = 'name-text';
-  nameSpan.textContent = item.name;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name-text';
+    nameSpan.textContent = item.name;
 
-  const note = (typeof ITEM_NOTES !== 'undefined') ? ITEM_NOTES[item.name] : null;
-  if (note) {
-    nameTd.classList.add('has-note');
+    if (item.note) {
+      nameTd.classList.add('has-note');
+      nameSpan.addEventListener('click', (e) => {
+        e.stopPropagation();           // 防止立刻触发 document.click 把 tooltip 关掉
+        showTooltipNearEl(item.note, nameSpan);
+      });
+    }
 
-    // 备注文本格式化
-    const noteText =
-      note.kind === 'recipe'
-        ? `用 ${note.n} 个「${item.name}」做「${note.as}」；机器：${note.machine}；耗时：${note.days} 天` +
-          (note.extra ? `；${note.extra}` : '')
-        : (note.text || '');
-
-    // 长按显示（手机友好）
-    let pressTimer = null;
-    const startPress = (e) => {
-      pressTimer = setTimeout(() => {
-        showTooltipNearEl(noteText, nameSpan);
-      }, 420);
-    };
-    const cancelPress = () => {
-      if (pressTimer) clearTimeout(pressTimer);
-      pressTimer = null;
-    };
-
-    nameSpan.addEventListener('pointerdown', startPress);
-    nameSpan.addEventListener('pointerup', cancelPress);
-    nameSpan.addEventListener('pointercancel', cancelPress);
-    nameSpan.addEventListener('pointerleave', cancelPress);
-
-    // 也允许点击直接弹（桌面更方便）
-    nameSpan.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showTooltipNearEl(noteText, nameSpan);
-    });
-  }
-
-  nameTd.appendChild(nameSpan);
-  tr.appendChild(nameTd);
+    nameTd.appendChild(nameSpan);
+    tr.appendChild(nameTd);
 
     const seasonTd = document.createElement('td');
     seasonTd.textContent = item.season || '';
@@ -614,35 +645,15 @@ function renderTable() {
     catTd.textContent = item.category || '';
     tr.appendChild(catTd);
 
-    // 需求类型格子：只渲染选中的列
+    // 需求列
     selectedNeedTypes.forEach(type => {
       const need = item.needs[type];
       const doneRaw = item.done[type] || 0;
+
       const td = document.createElement('td');
       td.classList.add('need-cell');
 
-      // === 1. x 型需求 ===
-      if (need === 'x') {
-        // 显示：x / x（或你想显示成 ✔、已完成都可以，我先保持一致）
-        const done = doneRaw > 0 ? '✔' : 'x';
-
-        td.textContent = done;
-        td.classList.add('clickable');
-
-        if (doneRaw > 0) td.classList.add('need-done');
-
-        td.addEventListener('click', () => {
-          item.done[type] = doneRaw > 0 ? 0 : 1; // 一键完成/取消
-          saveItems();
-          renderTable();
-        });
-
-        tr.appendChild(td);
-        return; // 继续下一列
-      }
-
-      // === 2. 普通数字需求（你的原逻辑） ===
-      const needNum = need || 0;
+      const needNum = Number(need || 0);
       const done = Math.min(doneRaw, needNum);
 
       if (needNum <= 0) {
@@ -651,51 +662,57 @@ function renderTable() {
       } else {
         td.textContent = `${done}/${needNum}`;
         td.classList.add('clickable');
-
-        if (done >= needNum) {
-          td.classList.add('need-done');
-        }
+        if (done >= needNum) td.classList.add('need-done');
 
         td.addEventListener('click', () => {
           const currentDone = item.done[type] || 0;
-          if (currentDone < needNum) {
-            item.done[type] = currentDone + 1;
-          } else {
-            item.done[type] = 0;
-          }
-          saveItems();
-          renderTable();
+          if (currentDone < needNum) item.done[type] = currentDone + 1;
+          else item.done[type] = 0;
+          renderTable(); // 这里保持统一刷新
         });
       }
-      
-      // 如果是“献祭/任务”列，并且当前有需求或有来源信息，则显示小三角用于查看来源
-      if (type === '献祭' || type === '任务') {
-        const sources =
-          type === '献祭'
-            ? (donationSourcesByItem.get(item.name) || [])
-            : (questSourcesByItem.get(item.name) || []);
 
-        if (sources.length > 0) {
+      function buildDonationTooltipText(itemName) {
+        const lines = [];
+
+        const src = donationSourcesByItem.get(itemName) || [];
+        if (src.length) {
+          lines.push('来源（收集包）：');
+          src.forEach(s => {
+            lines.push(`- ${s.groupName} / ${s.bundleName} ×${s.count}`);
+          });
+        }
+
+        const notes = donationNotesByItem.get(itemName) || [];
+        if (notes.length) {
+          lines.push('');
+          lines.push('额外提醒：');
+          notes.forEach(t => lines.push(`- ${t}`));
+        }
+
+        if (!lines.length) return '';
+        return lines.join('\n');
+      }
+
+      if (type === '献祭') {
+        const tip = buildDonationTooltipText(item.name);
+        if (tip) {
           const info = document.createElement('div');
           info.className = 'cell-info';
-          info.title = '查看来源';
 
           info.addEventListener('click', (e) => {
-            e.stopPropagation(); // 不触发加数量
-            const lines = sources.map(s => {
-              if (type === '献祭') return `${s.groupName} / ${s.bundleName} ×${s.count}`;
-              return `${s.groupName} / ${s.questName} ×${s.count}`;
-            });
-            showTooltipNearEl(lines.join('\n'), td);
+            e.stopPropagation(); // 不要触发短按+1
+            showTooltipNearEl(tip, info);
           });
 
           td.appendChild(info);
         }
       }
+
       tr.appendChild(td);
     });
 
-    //“最爱”列（按开关显示，不参与求和）
+    // 最爱列（按开关）
     const favToggle = document.getElementById('toggle-favorite');
     const showFavorite = !favToggle || favToggle.checked;
     if (showFavorite) {
@@ -705,36 +722,31 @@ function renderTable() {
     }
 
     // 总需求列
-    // 总需求列（支持 x 型无限需求）
-    const { need, done, hasInfinite } = getTotalsForItem(item, selectedNeedTypes);
+    const { need, done } = getTotalsForItem(item, selectedNeedTypes);
     const totalTd = document.createElement('td');
     totalTd.classList.add('total-cell');
-
-    if (hasInfinite) {
-      totalTd.textContent = '-';   // 有 x 类型 → 总需求无法统计 → 用 '-' 标记
-    } else {
-      totalTd.textContent = need > 0 ? `${done}/${need}` : '-';
-    }
-
+    totalTd.textContent = need > 0 ? `${done}/${need}` : '-';
     tr.appendChild(totalTd);
 
-
-    // 操作列：重置本行（不影响全局备注）
+    // 操作列：重置本行
     const actionTd = document.createElement('td');
     const resetBtn = document.createElement('button');
     resetBtn.textContent = '重置本行';
     resetBtn.className = 'row-reset-btn';
-
     resetBtn.addEventListener('click', () => {
-      DEMAND_TYPES.forEach(type => {
-        item.done[type] = 0;
-      });
-      saveItems();
+      DEMAND_TYPES.forEach(t => (item.done[t] = 0));
       renderTable();
     });
-
     actionTd.appendChild(resetBtn);
     tr.appendChild(actionTd);
+
+    // 标记列：显示 x/y 对应的 label
+    const tagTd = document.createElement('td');
+    const tags = item.tags || [];
+    tagTd.textContent = tags.length
+      ? tags.map(t => (ITEM_TAG_DEFS?.[t]?.label || t)).join(' / ')
+      : '';
+    tr.appendChild(tagTd);
 
     tbody.appendChild(tr);
   });
@@ -1033,6 +1045,20 @@ function setupEvents() {
     if (e.target && (e.target.id === 'tooltip' || e.target.closest('#tooltip'))) return;
     hideTooltip();
   });
+
+  const toggleHiddenBtn = document.getElementById('toggle-hidden-btn');
+  const hiddenWrap = document.getElementById('hidden-items-wrap');
+
+  if (toggleHiddenBtn && hiddenWrap) {
+    toggleHiddenBtn.addEventListener('click', () => {
+      const isOpen = hiddenWrap.style.display !== 'none';
+      hiddenWrap.style.display = isOpen ? 'none' : 'block';
+      toggleHiddenBtn.textContent = isOpen ? '＋ 显示隐藏物品' : '－ 隐藏这些物品';
+
+      // 展开时补渲染隐藏表
+      if (!isOpen) renderTable();
+    });
+  }
 }
 
 // =============== 启动 ===============
