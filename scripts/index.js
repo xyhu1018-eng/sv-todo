@@ -732,6 +732,21 @@ function renderTableInto(tbodyId, headerRowId, list) {
         return lines.join('\n');
       }
 
+      function buildQuestTooltipText(itemName) {
+        const lines = [];
+
+        const src = questSourcesByItem.get(itemName) || [];
+        if (src.length) {
+          lines.push('来源（任务）：');
+          src.forEach(s => {
+            lines.push(`- ${s.groupName} / ${s.questName} ×${s.count}`);
+          });
+        }
+
+        if (!lines.length) return '';
+        return lines.join('\n');
+      }
+
       if (type === '献祭') {
         const tip = buildDonationTooltipText(item.name);
         if (tip) {
@@ -745,6 +760,15 @@ function renderTableInto(tbodyId, headerRowId, list) {
         }
       }
 
+      if (type === '任务') {
+        const tip = buildQuestTooltipText(item.name);
+        if (tip) {
+          const info = document.createElement('div');
+          info.className = 'cell-info';
+          bindTooltipInteractions(info, () => tip);
+          td.appendChild(info);
+        }
+      }
 
       tr.appendChild(td);
     });
