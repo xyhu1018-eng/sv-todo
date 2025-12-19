@@ -772,6 +772,11 @@ function renderTableInto(tbodyId, headerRowId, list) {
       tr.appendChild(td);
     });
 
+    if (type === '最爱') {
+      td.textContent = item.favorite || '';
+      td.classList.add('favorite-cell');
+    }
+
     // 最爱列（按开关）
     const favToggle = document.getElementById('toggle-favorite');
     const showFavorite = !favToggle || favToggle.checked;

@@ -224,6 +224,13 @@ td.col-season, th.col-season { width: 3.5em; }
 td.col-category, th.col-category { width: 3.5em; }
 td.item-name, th.col-item { width: 6em; }
 
+/* 最爱列：允许自动换行 */
+.favorite-cell {
+  white-space: normal;        /* 允许换行 */
+  word-break: break-word;     /* 长词/连续字符也能断 */
+  overflow-wrap: anywhere;   /* 中文/英文混合都安全 */
+  line-height: 1.4;
+}
 
 /* Notes*/
 .notes-panel {
