@@ -258,7 +258,7 @@ async function loadItemsFromCSV() {
   const res = await fetch(ITEMS_CSV_PATH);
   const text = await res.text();
 
-  const records = parseCSV(text);
+  const records = parseCSV(text).filter(r => (r.name || '').trim());
 
   items = records.map((record, index) => {
     const needs = {};
