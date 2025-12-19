@@ -710,64 +710,63 @@ function renderTableInto(tbodyId, headerRowId, list) {
         });
       }
 
-      function buildDonationTooltipText(itemName) {
+      function buildSourcesTooltipText({
+        title,
+        sources,
+        sourceLine,
+        extraTitle,
+        extraLines,
+      }) {
         const lines = [];
 
-        const src = donationSourcesByItem.get(itemName) || [];
-        if (src.length) {
-          lines.push('来源（收集包）：');
-          src.forEach(s => {
-            lines.push(`- ${s.groupName} / ${s.bundleName} ×${s.count}`);
-          });
+        if (Array.isArray(sources) && sources.length) {
+          if (title) lines.push(title);
+          sources.forEach((s) => lines.push(sourceLine(s)));
         }
 
-        const notes = donationNotesByItem.get(itemName) || [];
-        if (notes.length) {
-          lines.push('');
-          lines.push('额外提醒：');
-          notes.forEach(t => lines.push(`- ${t}`));
+        if (Array.isArray(extraLines) && extraLines.length) {
+          // 有来源时空一行更清晰；没来源时就不强行加空行
+          if (lines.length) lines.push('');
+          if (extraTitle) lines.push(extraTitle);
+          extraLines.forEach((t) => lines.push(`- ${t}`));
         }
 
-        if (!lines.length) return '';
-        return lines.join('\n');
+        return lines.length ? lines.join('\n') : '';
       }
 
-      function buildQuestTooltipText(itemName) {
-        const lines = [];
+      function attachCellInfoTooltip(tdEl, getText) {
+        if (!tdEl) return;
+        const text = typeof getText === 'function' ? getText() : getText;
+        if (!text) return;
 
-        const src = questSourcesByItem.get(itemName) || [];
-        if (src.length) {
-          lines.push('来源（任务）：');
-          src.forEach(s => {
-            lines.push(`- ${s.groupName} / ${s.questName} ×${s.count}`);
-          });
-        }
-
-        if (!lines.length) return '';
-        return lines.join('\n');
+        const info = document.createElement('div');
+        info.className = 'cell-info';
+        bindTooltipInteractions(info, () => text);
+        tdEl.appendChild(info);
       }
 
+      // —— 在这里：根据不同需求列挂不同 tooltip ——
+
+      // 献祭
       if (type === '献祭') {
-        const tip = buildDonationTooltipText(item.name);
-        if (tip) {
-          const info = document.createElement('div');
-          info.className = 'cell-info';
-
-          // triEl 不存在：直接把 tooltip 绑定到 info 上即可
-          bindTooltipInteractions(info, () => tip);
-
-          td.appendChild(info);
-        }
+        const tip = buildSourcesTooltipText({
+          title: '来源（收集包）：',
+          sources: donationSourcesByItem.get(item.name) || [],
+          sourceLine: (s) => `- ${s.groupName} / ${s.bundleName} ×${s.count}`,
+          extraTitle: '额外提醒：',
+          extraLines: donationNotesByItem.get(item.name) || [],
+        });
+        attachCellInfoTooltip(td, tip);
       }
 
+      // 任务
       if (type === '任务') {
-        const tip = buildQuestTooltipText(item.name);
-        if (tip) {
-          const info = document.createElement('div');
-          info.className = 'cell-info';
-          bindTooltipInteractions(info, () => tip);
-          td.appendChild(info);
-        }
+        const tip = buildSourcesTooltipText({
+          title: '来源（任务）：',
+          sources: questSourcesByItem.get(item.name) || [],
+          sourceLine: (s) => `- ${s.groupName} / ${s.questName} ×${s.count}`,
+        });
+        attachCellInfoTooltip(td, tip);
       }
 
       tr.appendChild(td);
