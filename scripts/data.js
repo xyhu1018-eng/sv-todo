@@ -16,6 +16,7 @@ const DEMAND_TYPES = [
 const ITEM_TAG_DEFS = {
   x: { label: '不卖', hint: '资源类：都留着，不必卖' },
   y: { label: '不留', hint: '多来源：用时再做/再拿，不必特意留' },
+  z: { label: '无季节', hint: '季节不敏感：开始稳定产出后不用担心季节' },
   // z: { label:'...', hint:'...' }
 };
 

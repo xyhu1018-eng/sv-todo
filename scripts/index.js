@@ -557,7 +557,7 @@ function renderFilterOptions() {
 
 // =============== 表头渲染 ===============
 
-function renderHeaderTo(headerRowId, selectedNeedTypes) {
+function renderHeaderTo(headerRowId, selectedNeedTypes, showTagColumn = true) {
   const headerRow = document.getElementById(headerRowId);
   if (!headerRow) return;
   headerRow.innerHTML = '';
@@ -596,10 +596,12 @@ function renderHeaderTo(headerRowId, selectedNeedTypes) {
   actionTh.textContent = '操作';
   headerRow.appendChild(actionTh);
 
-  // 新增：标记列（显示 x/y → 不卖/不留）
-  const tagTh = document.createElement('th');
-  tagTh.textContent = '标记';
-  headerRow.appendChild(tagTh);
+  // 只有需要时才渲染“标记”
+  if (showTagColumn) {
+    const tagTh = document.createElement('th');
+    tagTh.textContent = '标记';
+    headerRow.appendChild(tagTh);
+  }
 }
 
 // =============== 全局备注渲染 ===============
@@ -654,17 +656,17 @@ function renderTable() {
   const hiddenItems = items.filter(it => it.tags && it.tags.length > 0);
 
   // 1) 主表
-  renderTableInto('items-tbody', 'table-header-row', normalItems);
+  renderTableInto('items-tbody', 'table-header-row', normalItems, false);
 
   // 2) 隐藏表：只有展开时才渲染
   const hiddenWrap = document.getElementById('hidden-items-wrap');
   const isOpen = hiddenWrap && hiddenWrap.style.display !== 'none';
   if (isOpen) {
-    renderTableInto('hidden-items-tbody', 'hidden-table-header-row', hiddenItems);
+    renderTableInto('hidden-items-tbody', 'hidden-table-header-row', hiddenItems, true);
   }
 }
 
-function renderTableInto(tbodyId, headerRowId, list) {
+function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -674,7 +676,7 @@ function renderTableInto(tbodyId, headerRowId, list) {
   const selectedNeedTypes = getCheckedValues('filter-need-group');
 
   // 画对应表头
-  renderHeaderTo(headerRowId, selectedNeedTypes);
+  renderHeaderTo(headerRowId, selectedNeedTypes, showTagColumn);
 
   // === 过滤（沿用你现有逻辑）===
   let filteredItems = list.filter(item => {
@@ -924,13 +926,15 @@ function renderTableInto(tbodyId, headerRowId, list) {
     actionTd.appendChild(resetBtn);
     tr.appendChild(actionTd);
 
-    // 标记列：显示 x/y 对应的 label
-    const tagTd = document.createElement('td');
-    const tags = item.tags || [];
-    tagTd.textContent = tags.length
-      ? tags.map(t => (ITEM_TAG_DEFS?.[t]?.label || t)).join(' / ')
-      : '';
-    tr.appendChild(tagTd);
+    // 标记列（仅隐藏表渲染）：显示 x/y/z 对应 label（不卖/不留/无季节）
+    if (showTagColumn) {
+      const tagTd = document.createElement('td');
+      const tags = item.tags || [];
+      tagTd.textContent = tags.length
+        ? tags.map(t => (ITEM_TAG_DEFS?.[t]?.label || t)).join(' / ')
+        : '';
+      tr.appendChild(tagTd);
+    }
 
     tbody.appendChild(tr);
   });
