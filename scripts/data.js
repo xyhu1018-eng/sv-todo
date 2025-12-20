@@ -39,7 +39,7 @@ const ITEMS_CSV_PATH = 'data/items.csv';
 
 // 收集包模式
 const DONATION_MODE_BASE = 'base';   // 基础献祭
-const DONATION_MODE_MIXED = 'mixed'; // 混合献祭（随机包）
+const DONATION_MODE_REMIXED = 'remixed'; // 混合献祭（随机包）
 
 // 献祭收集包：按大类（房间）分组
 // 每个 bundle.items 里的 name 必须与 items.csv 的 name 完全一致
@@ -432,6 +432,82 @@ const DONATION_BUNDLE_GROUPS = [
     ]
   },
   // 继续添加其它房间...
+];
+
+const REMIX_BUNDLE_DEFS = [
+  {
+    id: 'crafts_room_rm',
+    name: '工艺室',
+    bundles: [
+      {
+        id: 'rm_cr_spring_foraging',
+        name: '（混合）春季采集收集包',
+        mode: DONATION_MODE_REMIXED,
+        baseBundleId: 'cr_spring_foraging',
+        remixType: 'permanent', 
+        needSlots: 4,
+        items: [
+          { name: '野山葵', count:1 },
+          { name: '黄水仙', count:1 },
+          { name: '韭葱', count:1 },
+          { name: '蒲公英', count:1 },
+          { name: '大葱', count:1 },
+        ],
+      },
+      {
+        id: 'rm_cr_winter_foraging',
+        name: '（混合）冬季采集收集包',
+        mode: DONATION_MODE_REMIXED,
+        baseBundleId: 'cr_winter_foraging',
+        remixType: 'permanent', 
+        needSlots: 4,
+        items: [
+          { name: '冬根', count: 1 },
+          { name: '水晶果', count: 1 },
+          { name: '雪山药', count: 1 },
+          { name: '番红花', count: 1 },
+          { name: '冬青树', count:1 },
+        ],
+      },
+      {
+        id: 'rm_cr_sticky',
+        name: '黏糊糊收集包',
+        mode: DONATION_MODE_REMIXED,
+        baseBundleId: 'cr_construction',
+        remixType: 'random', 
+        items: [
+          { name:'树液', count:500 },
+        ],
+        replacements: ['rm_cr_forest'],
+      },
+      {
+        id: 'rm_cr_forest',
+        name: '森林收集包',
+        mode: DONATION_MODE_REMIXED,
+        needSlots: 3,
+        items: [
+          { name:'苔藓', count:10 },
+          { name:'纤维', count:200 },
+          { name:'橡子', count:10 },
+          { name:'枫树种子', count:10 },
+        ],
+      },
+      {
+        id: 'rm_cr_wild_medicine',
+        name: '野生药材收集包',
+        mode: DONATION_MODE_REMIXED,
+        baseBundleId: 'cr_exotic_foraging',
+        remixType: 'random', 
+        items: [
+          { name:'紫蘑菇', count:5 },
+          { name:'蕨菜', count:5 },
+          { name:'白藻', count:5 },
+          { name:'啤酒花', count:5 },
+        ],
+        replacements: [],
+      },
+    ]
+  }
 ];
 
 // 任务：按大类分组

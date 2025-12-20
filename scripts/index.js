@@ -262,6 +262,16 @@ function getCategoryTokens(item) {
   });
 }*/
 
+// =====================
+// 混合献祭：模块状态（目前不存储，刷新清空）
+// =====================
+
+// 已生效的替换规则：[{ baseBundleId: 'p_spring_crops', replaceWithBundleId: 'xxx' }, ...]
+// replaceWithBundleId 为空/'' 表示不替换（继续用基础包）
+// { baseBundleId, replaceWithBundleId, pickedItemNames?: string[] }
+let mixedDonationAppliedRules = [];
+
+
 // ========== 简单 CSV 解析器（支持最常用的情况） ==========
 function parseCSV(text) {
   const lines = text
@@ -381,7 +391,7 @@ function computeDonationNeedsAndSources() {
 
   DONATION_BUNDLE_GROUPS.forEach(group => {
     (group.bundles || []).forEach(bundle => {
-      if (!selectedDonationBundleIds.has(bundle.id)) return;
+      if (bundle.mode !== DONATION_MODE_BASE) return;
 
       (bundle.items || []).forEach(entry => {
         const name = (entry.name || '').trim();
@@ -431,9 +441,166 @@ function computeDonationNeedsAndSources() {
   donationSourcesByItem = srcMap;
   donationNotesByItem = noteMap;
   donationQualityNeedsByItem = qNeedMap; // 新增
+
+    // === 应用“混合献祭”替换规则（在基础献祭之上覆盖）===
+    const byId = indexDonationBundlesById();
+
+    (mixedDonationAppliedRules || []).forEach(rule => {
+      const baseId = (rule.baseBundleId || '').trim();
+      const repId = (rule.replaceWithBundleId || '').trim();
+      const picked = Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : [];
+
+      if (!baseId) return;
+
+      // replacement 为空：默认不替换；但如果“该基础包只有唯一混合包”，则自动用那个混合包
+      let effectiveRepId = repId;
+      if (!effectiveRepId) {
+        const uniq = findUniqueRemixBundleForBase(baseId);
+        if (uniq && uniq.id) effectiveRepId = uniq.id;
+      }
+      if (!effectiveRepId) return;
+
+      const baseInfo = byId.get(baseId);
+      const repInfo = byId.get(effectiveRepId);
+      if (!baseInfo || !repInfo) return;
+
+
+      const baseInfo = byId.get(baseId);
+      const repInfo = byId.get(repId);
+      if (!baseInfo || !repInfo) return;
+
+      // 生成 replacement 的最终 items（支持 needSlots 的 4选3）
+      let repItemsOverride = null;
+
+      const repBundle = repInfo.bundle;
+      const needSlots = Number(repBundle.needSlots || 0);
+
+      if (needSlots > 0) {
+        const allItems = repBundle.items || [];
+
+        // 如果用户有勾选：按勾选过滤（保留原 count/quality/qCount）
+        if (picked.length > 0) {
+          const pickedSet = new Set(picked);
+          repItemsOverride = allItems.filter(it => pickedSet.has(it.name)).slice(0, needSlots);
+        } else {
+          // 兼容“只有一种可能且你不想强制勾选”的情况：
+          // 如果 items 总数本来就 <= needSlots，则无需勾选也能确定；否则未勾选就不应用替换（避免默默选错）
+          if (allItems.length <= needSlots) {
+            repItemsOverride = allItems.slice();
+          } else {
+            // 没勾选但需要从更多候选里选 needSlots 个：不应用替换（保留基础包）
+            return;
+          }
+        }
+      }
+      // 1) 先减去基础包贡献
+      applyBundleContribution(baseInfo, -1, needMap, srcMap, noteMap, qNeedMap);
+
+      // 2) 再加上替换包贡献（可能使用 override items）
+      applyBundleContribution(repInfo, +1, needMap, srcMap, noteMap, qNeedMap, repItemsOverride);
+    });
+
   return needMap;
 }
 
+function getAllDonationBundleGroups() {
+  const groups = [];
+  if (typeof DONATION_BUNDLE_GROUPS !== 'undefined' && Array.isArray(DONATION_BUNDLE_GROUPS)) {
+    groups.push(...DONATION_BUNDLE_GROUPS);
+  }
+  if (typeof REMIX_BUNDLE_DEFS !== 'undefined' && Array.isArray(REMIX_BUNDLE_DEFS)) {
+    groups.push(...REMIX_BUNDLE_DEFS);
+  }
+  return groups;
+}
+
+function indexDonationBundlesById() {
+  const map = new Map();
+  const groups = getAllDonationBundleGroups();
+
+  groups.forEach(group => {
+    (group.bundles || []).forEach(bundle => {
+      // 统一保证 group.name 存在
+      const g = group.name ? group : { ...group, name: group.id || '（未命名分组）' };
+      map.set(bundle.id, { group: g, bundle });
+    });
+  });
+
+  return map;
+}
+
+
+function applyBundleContribution({ group, bundle }, op, needMap, srcMap, noteMap, qNeedMap, itemsOverride = null) {
+  const itemsToUse = Array.isArray(itemsOverride) ? itemsOverride : (bundle.items || []);
+  // op: +1 表示加，-1 表示减
+  itemsToUse.forEach(entry => {
+    const name = (entry.name || '').trim();
+    if (!name) return;
+
+    const count = Number(entry.count || 0);
+    const quality = (entry.quality || '').trim();
+    const qCount = Number(entry.qCount || 0);
+
+    // 普通需求
+    if (count > 0) {
+      needMap.set(name, (needMap.get(name) || 0) + op * count);
+
+      if (!srcMap.has(name)) srcMap.set(name, []);
+      if (op > 0) {
+        srcMap.get(name).push({ groupName: group.name, bundleName: bundle.name, count });
+      } else {
+        // 删除时：尽量删掉匹配的一条来源（简单实现：找第一条匹配并 splice）
+        const arr = srcMap.get(name) || [];
+        const i = arr.findIndex(s => s.groupName === group.name && s.bundleName === bundle.name && s.count === count);
+        if (i >= 0) arr.splice(i, 1);
+      }
+    }
+
+    // 星级需求（不计入普通求和）
+    if (quality) {
+      if (!qNeedMap.has(name)) qNeedMap.set(name, []);
+      const arr = qNeedMap.get(name);
+
+      const payload = {
+        quality,
+        count: qCount > 0 ? qCount : 0,
+        groupName: group.name,
+        bundleName: bundle.name,
+      };
+
+      if (op > 0) {
+        arr.push(payload);
+      } else {
+        const i = arr.findIndex(x =>
+          x.quality === payload.quality &&
+          x.count === payload.count &&
+          x.groupName === payload.groupName &&
+          x.bundleName === payload.bundleName
+        );
+        if (i >= 0) arr.splice(i, 1);
+      }
+    }
+  });
+
+  // notes
+  (bundle.notes || []).forEach(n => {
+    const itemName = (n.item || '').trim();
+    const text = (n.text || '').trim();
+    if (!itemName || !text) return;
+
+    const line = `【${group.name} / ${bundle.name}】${text}`;
+
+    if (!noteMap.has(itemName)) noteMap.set(itemName, []);
+    const arr = noteMap.get(itemName);
+
+    if (op > 0) {
+      arr.push(line);
+    } else {
+      const i = arr.indexOf(line);
+      if (i >= 0) arr.splice(i, 1);
+    }
+  });
+}
 
 
 function computeQuestNeedsAndSources() {
@@ -965,90 +1132,227 @@ function resetAllProgress() {
 
 // =============== 事件绑定 ===============
 
-function renderDonationPanel() {
-  const root = document.getElementById('donation-bundles-panel');
+
+// =====================
+// 混合献祭 UI：渲染/交互
+// =====================
+
+function getAllDonationBundlesFlat() {
+  const groups = getAllDonationBundleGroups();
+  const all = [];
+
+  groups.forEach(g => {
+    (g.bundles || []).forEach(b => {
+      all.push({
+        id: b.id,
+        name: b.name,
+        mode: b.mode,
+        groupName: g.name || g.id || '',
+      });
+    });
+  });
+
+  return all;
+}
+
+function findUniqueRemixBundleForBase(baseBundleId) {
+  if (!baseBundleId) return null;
+
+  const groups = (typeof REMIX_BUNDLE_DEFS !== 'undefined' && Array.isArray(REMIX_BUNDLE_DEFS))
+    ? REMIX_BUNDLE_DEFS
+    : [];
+
+  const hits = [];
+  groups.forEach(g => {
+    (g.bundles || []).forEach(b => {
+      if ((b.baseBundleId || '').trim() === baseBundleId) hits.push(b);
+    });
+  });
+
+  return hits.length === 1 ? hits[0] : null;
+}
+
+
+function renderMixedDonationPanel() {
+  const root = document.getElementById('mixed-donation-panel');
   if (!root) return;
   root.innerHTML = '';
+  const byId = indexDonationBundlesById();
 
   if (typeof DONATION_BUNDLE_GROUPS === 'undefined') {
     root.textContent = '未定义 DONATION_BUNDLE_GROUPS（请在 data.js 中添加）';
     return;
   }
 
-  DONATION_BUNDLE_GROUPS.forEach(group => {
-    const block = document.createElement('div');
-    block.className = 'group-block';
+  if (!mixedDonationAppliedRules.length) {
+    const empty = document.createElement('div');
+    empty.className = 'mixed-empty';
+    empty.textContent = '暂无替换规则（默认：全部使用基础献祭）。';
+    root.appendChild(empty);
+  }
 
-    const title = document.createElement('div');
-    title.className = 'group-title';
-    title.textContent = group.name;
+  const allBundles = getAllDonationBundlesFlat();
+  const baseBundles = allBundles.filter(b => b.mode === DONATION_MODE_BASE);
 
-    const actions = document.createElement('div');
-    actions.className = 'group-actions';
+  mixedDonationAppliedRules.forEach((rule, idx) => {
+    const row = document.createElement('div');
+    row.className = 'mixed-rule';
 
-    const btnAll = document.createElement('button');
-    btnAll.textContent = '全选';
-    btnAll.addEventListener('click', () => {
-      group.bundles.forEach(b => selectedDonationBundleIds.add(b.id));
-      syncDonationCheckboxes();
-      recomputeDynamicNeeds();
-      renderTable();
+    // baseBundleId（文本 + 下拉二选一：为了你录数据阶段方便，这里直接给下拉）
+    const baseSel = document.createElement('select');
+    baseBundles.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = `${b.groupName} / ${b.name} (${b.id})`;
+      baseSel.appendChild(opt);
+    });
+    baseSel.value = rule.baseBundleId || (baseBundles[0]?.id || '');
+
+    // replaceWithBundleId：允许留空（不替换）
+    const replaceSel = document.createElement('select');
+    const optEmpty = document.createElement('option');
+    optEmpty.value = '';
+    optEmpty.textContent = '（不替换：继续用基础包）';
+    replaceSel.appendChild(optEmpty);
+
+    // 这里先允许选择“任意 bundle id”作为替换目标（你后面再把选项收敛到“xxx 可被 yyy/zzz 替换”）
+    allBundles.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = `${b.groupName} / ${b.name} (${b.id})`;
+      replaceSel.appendChild(opt);
+    });
+    replaceSel.value = rule.replaceWithBundleId || '';
+
+    // 删除按钮
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger';
+    delBtn.textContent = '删除';
+    delBtn.addEventListener('click', () => {
+      mixedDonationAppliedRules.splice(idx, 1);
+      renderMixedDonationPanel();
     });
 
-    const btnNone = document.createElement('button');
-    btnNone.textContent = '全不选';
-    btnNone.addEventListener('click', () => {
-      group.bundles.forEach(b => selectedDonationBundleIds.delete(b.id));
-      syncDonationCheckboxes();
-      recomputeDynamicNeeds();
-      renderTable();
+    // 说明列（可选）
+    const info = document.createElement('div');
+    info.className = 'mixed-info';
+    info.textContent = '确认生效后：用替换包的需求覆盖掉该基础包的需求';
+
+
+    row.appendChild(baseSel);
+    row.appendChild(replaceSel);
+
+    // === 多选区：当替换包有 needSlots 时显示（支持“replacement 本身也是 4选3”）===
+    const repId = (rule.replaceWithBundleId || '').trim();
+    let effectiveRepId = repId;
+
+    // 兼容：replacement 为空但唯一混合包
+    if (!effectiveRepId) {
+      const uniq = findUniqueRemixBundleForBase((rule.baseBundleId || '').trim());
+      if (uniq && uniq.id) effectiveRepId = uniq.id;
+    }
+
+    if (effectiveRepId) {
+      const repInfo = byId.get(effectiveRepId);
+      const repBundle = repInfo?.bundle;
+      const needSlots = Number(repBundle?.needSlots || 0);
+
+      if (needSlots > 0) {
+        const pickWrap = document.createElement('div');
+        pickWrap.className = 'mixed-pick';
+
+        const title = document.createElement('div');
+        title.className = 'mixed-pick-title';
+        title.textContent = `该替换包需要从候选中选 ${needSlots} 个：`;
+        pickWrap.appendChild(title);
+
+        const list = document.createElement('div');
+        list.className = 'mixed-pick-list';
+
+        const allItems = Array.isArray(repBundle.items) ? repBundle.items : [];
+        const picked = new Set(Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : []);
+
+        allItems.forEach(it => {
+          const label = document.createElement('label');
+          label.className = 'mixed-pick-item';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = picked.has(it.name);
+
+          cb.addEventListener('change', () => {
+            const cur = new Set(Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : []);
+
+            if (cb.checked) cur.add(it.name);
+            else cur.delete(it.name);
+
+            // 超过 needSlots：禁止（撤回本次勾选）
+            if (cur.size > needSlots) {
+              cb.checked = false;
+              return;
+            }
+
+            rule.pickedItemNames = Array.from(cur);
+          });
+
+          label.appendChild(cb);
+          label.appendChild(document.createTextNode(it.name));
+          list.appendChild(label);
+        });
+
+        pickWrap.appendChild(list);
+        row.appendChild(pickWrap);
+      }
+    }
+
+    
+    row.appendChild(info);
+    row.appendChild(delBtn);
+
+    // 临时把 DOM 值写回 rule（因为现在不存储，直接内存保持即可）
+    baseSel.addEventListener('change', () => (rule.baseBundleId = baseSel.value));
+    replaceSel.addEventListener('change', () => {
+      rule.replaceWithBundleId = replaceSel.value;
+      rule.pickedItemNames = []; // 切换替换包时，清空之前的勾选
+      renderMixedDonationPanel(); // 重新渲染以显示/隐藏多选区
     });
 
-    actions.appendChild(btnAll);
-    actions.appendChild(btnNone);
-
-    const head = document.createElement('div');
-    head.className = 'group-title';
-    head.innerHTML = `<span>${group.name}</span>`;
-    head.appendChild(actions);
-
-    block.appendChild(head);
-
-    const list = document.createElement('div');
-    list.className = 'checkbox-group';
-
-    group.bundles.forEach(bundle => {
-      const label = document.createElement('label');
-      label.className = 'checkbox-item';
-
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.dataset.bundleId = bundle.id;
-      cb.checked = selectedDonationBundleIds.has(bundle.id);
-
-      cb.addEventListener('change', () => {
-        if (cb.checked) selectedDonationBundleIds.add(bundle.id);
-        else selectedDonationBundleIds.delete(bundle.id);
-
-        recomputeDynamicNeeds();
-        renderTable();
-      });
-
-      const suffix = bundle.mode === DONATION_MODE_MIXED ? '（混合）' : '';
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(`${bundle.name}${suffix}`));
-      list.appendChild(label);
-    });
-
-    block.appendChild(list);
-    root.appendChild(block);
+    root.appendChild(row);
   });
 }
 
-function syncDonationCheckboxes() {
-  document.querySelectorAll('input[type="checkbox"][data-bundle-id]').forEach(cb => {
-    cb.checked = selectedDonationBundleIds.has(cb.dataset.bundleId);
-  });
+function setupMixedDonationPanelEvents() {
+  const btnAdd = document.getElementById('mixed-donation-add-rule');
+  const btnApply = document.getElementById('mixed-donation-apply');
+  const details = document.getElementById('mixed-donation-details');
+
+  if (btnAdd) {
+    btnAdd.addEventListener('click', () => {
+      mixedDonationAppliedRules.push({ baseBundleId: '', replaceWithBundleId: '' });
+      renderMixedDonationPanel();
+    });
+  }
+
+  if (btnApply) {
+    btnApply.addEventListener('click', () => {
+      // 过滤掉 baseBundleId 为空的空规则
+      mixedDonationAppliedRules = mixedDonationAppliedRules
+        .map(r => ({
+          baseBundleId: (r.baseBundleId || '').trim(),
+          replaceWithBundleId: (r.replaceWithBundleId || '').trim(),
+          pickedItemNames: Array.isArray(r.pickedItemNames) ? r.pickedItemNames.slice() : [],
+        }))
+        .filter(r => r.baseBundleId);
+
+
+      // 触发重算 + 重新渲染
+      recomputeDynamicNeeds();
+      renderTable();
+
+      // 自动折叠回去
+      if (details) details.open = false;
+    });
+  }
 }
 
 function renderQuestPanel() {
@@ -1264,8 +1568,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   recomputeDynamicNeeds();
 
   // 渲染面板
-  renderDonationPanel();
   renderQuestPanel();
+  renderMixedDonationPanel();
+  setupMixedDonationPanelEvents();
 
   // 原有 UI
   renderFilterOptions();

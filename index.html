@@ -64,18 +64,24 @@
 
     <!-- 献祭 / 任务 生成系统 -->
     <section class="gen-panels">
-      <details class="gen-panel">
-        <summary>献祭收集包（勾选后自动生成“献祭”需求）</summary>
-        <div class="panel-actions">
-          <button id="donation-select-base">只选基础献祭</button>
-          <button id="donation-select-none">全不选</button>
-          <button id="donation-select-all">全选（含混合）</button>
+      <details id="mixed-donation-details" class="gen-panel">
+        <summary>混合献祭（选择后点“确认生效”）</summary>
+
+        <div class="hint">
+          默认按<strong>基础献祭</strong>生成“献祭”需求。
+          这里用于配置“混合献祭”的替换规则：选择完后点 <strong>确认生效</strong>，会立刻重算献祭需求并自动折叠本模块。<br/>
+          （目前未启用 cookie：刷新会清空本模块选择；以后启用 cookie 时，这里的选择应被记住，且“重置全表”不清除这里。）
         </div>
-        <div id="donation-bundles-panel" class="panel-body">
-          <!-- JS 动态渲染：大类 + 收集包 checkbox -->
+
+        <div id="mixed-donation-panel" class="panel-body">
+          <!-- JS 动态渲染：替换规则列表 -->
+        </div>
+
+        <div class="panel-actions">
+          <button id="mixed-donation-add-rule">＋ 添加替换规则</button>
+          <button id="mixed-donation-apply" class="primary">确认生效</button>
         </div>
       </details>
-
       <details class="gen-panel">
         <summary>任务（勾选后自动生成“任务”需求）</summary>
         <div class="panel-actions">
