@@ -464,11 +464,6 @@ function computeDonationNeedsAndSources() {
       const repInfo = byId.get(effectiveRepId);
       if (!baseInfo || !repInfo) return;
 
-
-      const baseInfo = byId.get(baseId);
-      const repInfo = byId.get(repId);
-      if (!baseInfo || !repInfo) return;
-
       // 生成 replacement 的最终 items（支持 needSlots 的 4选3）
       let repItemsOverride = null;
 
@@ -1305,7 +1300,7 @@ function renderMixedDonationPanel() {
       }
     }
 
-    
+
     row.appendChild(info);
     row.appendChild(delBtn);
 
