@@ -396,19 +396,19 @@ const DONATION_BUNDLE_GROUPS = [
         name: '失踪的收集包',
         mode: DONATION_MODE_BASE, // 基础献祭也包含
         items: [
-          { name: '银星果酒', count: 1 },
+          { name: '果酒', quality: 'sliver', qCount: 1 },
           { name: '恐龙蛋黄酱', count: 1 },
           { name: '恐龙蛋', count: 1 },
           { name: '五彩碎片', count: 1 },
-          { name: '金星上古水果', count: 5 },
-          { name: '金星虚空鲑鱼', count: 1 },
+          { name: '上古水果', quality: 'gold', qCount: 5 },
+          { name: '虚空鲑鱼', quality: 'gold', qCount: 1 },
           { name: '鱼籽酱', count: 1 },
           { name: '鲟鱼鱼籽', count: 1 },
         ],
         notes: [
           {
-            item: '银星果酒',
-            text: '地下室:1个经14d做1银星果酒'
+            item: '果酒',
+            text: '地下室:1个经14d做1果酒'
           },
           {
             item: '恐龙蛋',
@@ -465,14 +465,3 @@ function getDefaultSelectedQuestIds() {
   return s;
 }
 
-// ============================
-// 物品备注（每个物品一条，可选）
-// ============================
-
-// 两种备注：
-// 1) 参数型：{ kind:'recipe', n:5, as:'葡萄干', machine:'烘干机', days:1, extra:'…可选' }
-// 2) 文本型：{ kind:'text', text:'随便写' }
-const ITEM_NOTES = {
-  // '葡萄': { kind:'recipe', n:5, as:'葡萄干', machine:'烘干机', days:1, extra:'记得留同品质' },
-  // '金星蔬菜': { kind:'text', text:'某某季节要留给谁…' },
-};

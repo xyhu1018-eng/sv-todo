@@ -415,3 +415,20 @@ td.item-name, th.col-item { width: 6em; }
 .tooltip.hidden {
   display: none;
 }
+
+.need-cell .cell-main {
+  display: block;
+}
+
+.need-cell .cell-quality {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 颜色：银/金/ir（你用的三个枚举） */
+.need-cell .q-silver { color: #2e80ff; }  /* 蓝 */
+.need-cell .q-gold   { color: #c79a00; }  /* 金 */
+.need-cell .q-ir     { color: #8a2be2; }  /* 紫 */

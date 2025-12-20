@@ -14,6 +14,7 @@ let selectedQuestIds = new Set();
 let donationSourcesByItem = new Map(); // itemName -> [{groupName,bundleName,count}]
 let questSourcesByItem = new Map();    // itemName -> [{groupName,questName,count}]
 let donationNotesByItem = new Map(); // itemName -> [text,text...]
+let donationQualityNeedsByItem = new Map(); // itemName -> [{quality, count, groupName, bundleName}]
 
 // ===== tooltip =====
 function getTooltipEl() {
@@ -141,9 +142,44 @@ function getTotalsForItem(item, filteredNeedTypes) {
 }
 
 
+function isDonationQualityComplete(item) {
+  const qList = donationQualityNeedsByItem.get(item.name) || [];
+  if (!qList.length) return true; // 没星级需求 → 不影响完成判定
+
+  const needByQ = {};
+  qList.forEach(e => {
+    const q = (e.quality || '').trim();
+    const c = Number(e.count || 0);
+    if (!q || c <= 0) return;
+    needByQ[q] = (needByQ[q] || 0) + c;
+  });
+
+  const qualities = Object.keys(needByQ);
+  if (!qualities.length) return true;
+
+  if (!item.donationQDone) item.donationQDone = {};
+
+  return qualities.every(q => {
+    const need = needByQ[q] || 0;
+    const done = Number(item.donationQDone[q] || 0);
+    return done >= need;
+  });
+}
+
 function isItemCompleteUnderFilter(item, filteredNeedTypes) {
   const { need, done } = getTotalsForItem(item, filteredNeedTypes);
-  return need > 0 && done >= need;
+  const baseComplete = need > 0 && done >= need;
+
+  const types =
+    Array.isArray(filteredNeedTypes) && filteredNeedTypes.length > 0
+      ? filteredNeedTypes
+      : DEMAND_TYPES;
+
+  //  只有在“献祭视角”下，星级才会阻止置底
+  if (types.includes('献祭')) {
+    return baseComplete && isDonationQualityComplete(item);
+  }
+  return baseComplete;
 }
 
 function getAllSeasons() {
@@ -329,35 +365,58 @@ function saveNotes() {
 }
 
 function computeDonationNeedsAndSources() {
-  const needMap = new Map();
+  const needMap = new Map();   // 普通献祭需求（参与 needs['献祭']）
   const srcMap = new Map();
-  const noteMap = new Map(); // 新增：收集 notes
+  const noteMap = new Map();
+
+  const qNeedMap = new Map();  // 新增：星级献祭需求（不参与求和）
+  // itemName -> [{quality, count, groupName, bundleName}]
 
   if (typeof DONATION_BUNDLE_GROUPS === 'undefined') {
     donationSourcesByItem = new Map();
     donationNotesByItem = new Map();
+    donationQualityNeedsByItem = new Map();
     return needMap;
   }
 
   DONATION_BUNDLE_GROUPS.forEach(group => {
-    group.bundles.forEach(bundle => {
+    (group.bundles || []).forEach(bundle => {
       if (!selectedDonationBundleIds.has(bundle.id)) return;
 
       (bundle.items || []).forEach(entry => {
-        const name = entry.name;
+        const name = (entry.name || '').trim();
+        if (!name) return;
+
         const count = Number(entry.count || 0);
 
-        needMap.set(name, (needMap.get(name) || 0) + count);
+        // ★ 星级字段：可选。缺省就当普通献祭
+        const quality = (entry.quality || '').trim();
+        const qCount = Number(entry.qCount || 0);
 
-        if (!srcMap.has(name)) srcMap.set(name, []);
-        srcMap.get(name).push({
-          groupName: group.name,
-          bundleName: bundle.name,
-          count
-        });
+        // 1) 普通需求：照旧累加（即使 entry 同时写了 quality，也可以允许 count 继续累加）
+        if (count > 0) {
+          needMap.set(name, (needMap.get(name) || 0) + count);
+
+          if (!srcMap.has(name)) srcMap.set(name, []);
+          srcMap.get(name).push({
+            groupName: group.name,
+            bundleName: bundle.name,
+            count
+          });
+        }
+
+        // 2) 星级需求：不进入 needMap，只记录到 qNeedMap
+        if (quality) {
+          if (!qNeedMap.has(name)) qNeedMap.set(name, []);
+          qNeedMap.get(name).push({
+            quality,
+            count: qCount > 0 ? qCount : 0,
+            groupName: group.name,
+            bundleName: bundle.name
+          });
+        }
       });
 
-      // 新增：把 bundle.notes 汇总到 noteMap
       (bundle.notes || []).forEach(n => {
         const itemName = (n.item || '').trim();
         const text = (n.text || '').trim();
@@ -370,9 +429,11 @@ function computeDonationNeedsAndSources() {
   });
 
   donationSourcesByItem = srcMap;
-  donationNotesByItem = noteMap; // 新增
+  donationNotesByItem = noteMap;
+  donationQualityNeedsByItem = qNeedMap; // ★ 新增
   return needMap;
 }
+
 
 
 function computeQuestNeedsAndSources() {
@@ -698,8 +759,53 @@ function renderTableInto(tbodyId, headerRowId, list) {
         td.textContent = '-';
         td.classList.add('no-need');
       } else {
-        td.textContent = `${done}/${needNum}`;
+        // 主行：普通献祭 done/need
+        td.textContent = ''; // 清空，改用 DOM 拼两行
+        const mainLine = document.createElement('div');
+        mainLine.className = 'cell-main';
+        mainLine.textContent = `${done}/${needNum}`;
+        td.appendChild(mainLine);
         td.classList.add('clickable');
+        if (type === '献祭') {
+          const qList = donationQualityNeedsByItem.get(item.name) || [];
+
+          // 聚合：同一物品可能来自多个包的星级需求 → 按 quality 累加
+          const needByQ = {};
+          qList.forEach(e => {
+            const q = (e.quality || '').trim();
+            const c = Number(e.count || 0);
+            if (!q || c <= 0) return;
+            needByQ[q] = (needByQ[q] || 0) + c;
+          });
+
+          const qualities = Object.keys(needByQ);
+          if (qualities.length) {
+            // 存储星级完成数：挂在 item 上，不进 item.done
+            if (!item.donationQDone) item.donationQDone = {};
+
+            qualities.forEach(q => {
+              const qNeed = needByQ[q];
+              const qDoneRaw = Number(item.donationQDone[q] || 0);
+              const qDone = Math.min(qDoneRaw, qNeed);
+
+              const qLine = document.createElement('div');
+              qLine.className = `cell-quality q-${q}`;
+              qLine.textContent = `${qDone}/${qNeed}`;
+
+              // 点击星级行：只改星级进度，不触发普通献祭点击
+              qLine.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const cur = Number(item.donationQDone[q] || 0);
+                if (cur < qNeed) item.donationQDone[q] = cur + 1;
+                else item.donationQDone[q] = 0;
+                renderTable();
+              });
+
+              td.appendChild(qLine);
+            });
+          }
+        }
+
         if (done >= needNum) td.classList.add('need-done');
 
         td.addEventListener('click', () => {
@@ -796,6 +902,7 @@ function renderTableInto(tbodyId, headerRowId, list) {
     resetBtn.className = 'row-reset-btn';
     resetBtn.addEventListener('click', () => {
       DEMAND_TYPES.forEach(t => (item.done[t] = 0));
+      item.donationQDone = {}; // 新增
       renderTable();
     });
     actionTd.appendChild(resetBtn);
@@ -823,6 +930,7 @@ function resetAllProgress() {
     DEMAND_TYPES.forEach(type => {
       item.done[type] = 0;
     });
+    item.donationQDone = {};
   });
   saveItems();
 
