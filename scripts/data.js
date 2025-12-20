@@ -157,9 +157,17 @@ const DONATION_BUNDLE_GROUPS = [
           { name: '山药', count: 1 },
         ]
       },
-
-      // 高品质作物收集包：暂时搁置（待你设计品质逻辑）
-
+      {
+        id: 'p_quality_crops',
+        name: '高品质作物收集包',
+        mode: DONATION_MODE_BASE,
+        items: [
+          { name: '防风草', quality: 'gold', qCount: 5 },
+          { name: '甜瓜', quality: 'gold', qCount: 5 },
+          { name: '南瓜', quality: 'gold', qCount: 5 },
+          { name: '玉米', quality: 'gold', qCount: 5 },
+        ]
+      },
       {
         id: 'p_animal',
         name: '动物收集包',
