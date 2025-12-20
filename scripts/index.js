@@ -592,9 +592,9 @@ function renderHeaderTo(headerRowId, selectedNeedTypes, showTagColumn = true) {
   totalTh.textContent = '总需求完成';
   headerRow.appendChild(totalTh);
 
-  const actionTh = document.createElement('th');
+/*  const actionTh = document.createElement('th');
   actionTh.textContent = '操作';
-  headerRow.appendChild(actionTh);
+  headerRow.appendChild(actionTh);*/
 
   // 只有需要时才渲染“标记”
   if (showTagColumn) {
@@ -914,17 +914,17 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
     tr.appendChild(totalTd);
 
     // 操作列：重置本行
-    const actionTd = document.createElement('td');
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = '重置本行';
-    resetBtn.className = 'row-reset-btn';
-    resetBtn.addEventListener('click', () => {
-      DEMAND_TYPES.forEach(t => (item.done[t] = 0));
-      item.donationQDone = {}; // 新增
-      renderTable();
-    });
-    actionTd.appendChild(resetBtn);
-    tr.appendChild(actionTd);
+    // const actionTd = document.createElement('td');
+    // const resetBtn = document.createElement('button');
+    // resetBtn.textContent = '重置本行';
+    // resetBtn.className = 'row-reset-btn';
+    // resetBtn.addEventListener('click', () => {
+    //   DEMAND_TYPES.forEach(t => (item.done[t] = 0));
+    //   item.donationQDone = {}; // 新增
+    //   renderTable();
+    // });
+    // actionTd.appendChild(resetBtn);
+    // tr.appendChild(actionTd);
 
     // 标记列（仅隐藏表渲染）：显示 x/y/z 对应 label（不卖/不留/无季节）
     if (showTagColumn) {
