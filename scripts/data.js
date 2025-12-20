@@ -396,7 +396,7 @@ const DONATION_BUNDLE_GROUPS = [
         name: '失踪的收集包',
         mode: DONATION_MODE_BASE, // 基础献祭也包含
         items: [
-          { name: '果酒', quality: 'sliver', qCount: 1 },
+          { name: '果酒', quality: 'silver', qCount: 1 },
           { name: '恐龙蛋黄酱', count: 1 },
           { name: '恐龙蛋', count: 1 },
           { name: '五彩碎片', count: 1 },

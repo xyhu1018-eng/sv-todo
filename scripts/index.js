@@ -389,7 +389,7 @@ function computeDonationNeedsAndSources() {
 
         const count = Number(entry.count || 0);
 
-        // ★ 星级字段：可选。缺省就当普通献祭
+        // 星级字段：可选。缺省就当普通献祭
         const quality = (entry.quality || '').trim();
         const qCount = Number(entry.qCount || 0);
 
@@ -430,7 +430,7 @@ function computeDonationNeedsAndSources() {
 
   donationSourcesByItem = srcMap;
   donationNotesByItem = noteMap;
-  donationQualityNeedsByItem = qNeedMap; // ★ 新增
+  donationQualityNeedsByItem = qNeedMap; // 新增
   return needMap;
 }
 
@@ -755,23 +755,29 @@ function renderTableInto(tbodyId, headerRowId, list) {
       const needNum = Number(need || 0);
       const done = Math.min(doneRaw, needNum);
 
-      if (needNum <= 0) {
+      // ====== 需求格渲染（支持“献祭只有星级也显示”）======
+      const qListForCell = (type === '献祭') ? (donationQualityNeedsByItem.get(item.name) || []) : [];
+      const hasQualityNeed = qListForCell.length > 0;
+
+      if (needNum <= 0 && !hasQualityNeed) {
         td.textContent = '-';
         td.classList.add('no-need');
       } else {
-        // 主行：普通献祭 done/need
-        td.textContent = ''; // 清空，改用 DOM 拼两行
+        td.textContent = '';
+        td.classList.add('clickable');
+
+        // 主行：普通需求 done/need（若普通为 0 且只有星级，可显示空）
         const mainLine = document.createElement('div');
         mainLine.className = 'cell-main';
-        mainLine.textContent = `${done}/${needNum}`;
+        mainLine.textContent = needNum > 0 ? `${done}/${needNum}` : '';
         td.appendChild(mainLine);
-        td.classList.add('clickable');
-        if (type === '献祭') {
-          const qList = donationQualityNeedsByItem.get(item.name) || [];
 
-          // 聚合：同一物品可能来自多个包的星级需求 → 按 quality 累加
+        // ===== 献祭：星级行 =====
+        let qualityCompleteForCell = true; // 用于控制“格子是否灰掉”
+        if (type === '献祭' && hasQualityNeed) {
+          // 聚合：quality -> totalNeed
           const needByQ = {};
-          qList.forEach(e => {
+          qListForCell.forEach(e => {
             const q = (e.quality || '').trim();
             const c = Number(e.count || 0);
             if (!q || c <= 0) return;
@@ -779,42 +785,52 @@ function renderTableInto(tbodyId, headerRowId, list) {
           });
 
           const qualities = Object.keys(needByQ);
-          if (qualities.length) {
-            // 存储星级完成数：挂在 item 上，不进 item.done
-            if (!item.donationQDone) item.donationQDone = {};
 
-            qualities.forEach(q => {
-              const qNeed = needByQ[q];
-              const qDoneRaw = Number(item.donationQDone[q] || 0);
-              const qDone = Math.min(qDoneRaw, qNeed);
+          if (!item.donationQDone) item.donationQDone = {};
 
-              const qLine = document.createElement('div');
-              qLine.className = `cell-quality q-${q}`;
-              qLine.textContent = `${qDone}/${qNeed}`;
+          qualities.forEach(q => {
+            const qNeed = needByQ[q];
+            const qDoneRaw = Number(item.donationQDone[q] || 0);
+            const qDone = Math.min(qDoneRaw, qNeed);
 
-              // 点击星级行：只改星级进度，不触发普通献祭点击
-              qLine.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                const cur = Number(item.donationQDone[q] || 0);
-                if (cur < qNeed) item.donationQDone[q] = cur + 1;
-                else item.donationQDone[q] = 0;
-                renderTable();
-              });
+            const qLine = document.createElement('div');
+            qLine.className = `cell-quality q-${q}`;
+            qLine.textContent = `${qDone}/${qNeed}`;
 
-              td.appendChild(qLine);
+            qLine.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              const cur = Number(item.donationQDone[q] || 0);
+              item.donationQDone[q] = (cur < qNeed) ? (cur + 1) : 0;
+              renderTable();
             });
-          }
+
+            td.appendChild(qLine);
+          });
+
+          // 计算星级是否完成（用于格子灰掉逻辑）
+          qualityCompleteForCell = qualities.every(q => Number(item.donationQDone[q] || 0) >= (needByQ[q] || 0));
         }
 
-        if (done >= needNum) td.classList.add('need-done');
+        // ===== 关键：决定这个格子要不要“灰掉/划掉” =====
+        // 规则：普通完成 +（若有星级则星级也完成）才灰掉
+        const normalCompleteForCell = (needNum > 0) ? (done >= needNum) : true; // 普通需求为0视为“无需普通”
+        const cellComplete = (type === '献祭')
+          ? (normalCompleteForCell && qualityCompleteForCell)
+          : normalCompleteForCell;
 
-        td.addEventListener('click', () => {
-          const currentDone = item.done[type] || 0;
-          if (currentDone < needNum) item.done[type] = currentDone + 1;
-          else item.done[type] = 0;
-          renderTable(); // 这里保持统一刷新
-        });
+        if (cellComplete) td.classList.add('need-done');
+        else td.classList.remove('need-done');
+
+        // 点击主格：只处理普通需求（needNum=0 时不绑定）
+        if (needNum > 0) {
+          td.addEventListener('click', () => {
+            const currentDone = item.done[type] || 0;
+            item.done[type] = (currentDone < needNum) ? (currentDone + 1) : 0;
+            renderTable();
+          });
+        }
       }
+
 
       function buildSourcesTooltipText({
         title,
