@@ -23,7 +23,6 @@ const ITEM_TAG_DEFS = {
 // 定义 CSV 文件路径
 const ITEMS_CSV_PATH = 'data/items.csv';
 
-//1蒜种子，1甜瓜种子, 1小麦种子；四个花种制作
 //制品有出货需求的会还原到材料上，比如需要啤酒，那么小麦的出货需求会留2，以防忘了留，勾掉啤酒的时候并不会自动让小麦需求-1
 //category的购买意味着能在一周内稳定买到/或者得到
 //category钓鱼包括鱼塘产物
@@ -35,8 +34,6 @@ const ITEMS_CSV_PATH = 'data/items.csv';
 // 献祭 / 任务 生成系统：数据定义
 // ============================
 
-// 献祭收集包：按大类（房间）分组
-// 每个 bundle.items 里的 name 必须与 items.csv 的 name 完全一致
 const DONATION_BUNDLE_GROUPS = [
   {
     id: 'crafts_room',
@@ -778,17 +775,6 @@ const QUEST_GROUPS = [
 // ============================
 // 默认勾选策略
 // ============================
-
-// 默认：勾选所有 base 模式的收集包；mixed 默认不勾选
-function getDefaultSelectedDonationBundleIds() {
-  const s = new Set();
-  DONATION_BUNDLE_GROUPS.forEach(g => {
-    g.bundles.forEach(b => {
-      if (b.mode === DONATION_MODE_BASE) s.add(b.id);
-    });
-  });
-  return s;
-}
 
 // 默认：任务全勾选
 function getDefaultSelectedQuestIds() {
