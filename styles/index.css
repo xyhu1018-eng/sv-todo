@@ -487,13 +487,13 @@ td.item-name, th.col-item { width: 6em; }
   padding: 10px 4px;
 }
 
-/* ===== 混合献祭：多选区（needSlots） ===== */
+/* ===== 混合献祭 needSlots 多选区 ===== */
 .mixed-pick {
   grid-column: 1 / -1;
-  background: #fff;
-  border: 1px dashed #e5e5e5;
-  border-radius: 8px;
   padding: 8px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .mixed-pick-title {
@@ -509,15 +509,15 @@ td.item-name, th.col-item { width: 6em; }
 }
 
 .mixed-pick-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   white-space: nowrap;
 }
 
-.mixed-pick-item input {
-  margin-right: 4px;
-}
-
-.mixed-info {
+.mixed-pick-foot {
+  margin-top: 6px;
   font-size: 12px;
-  color: #666;
+  color: #888;
 }

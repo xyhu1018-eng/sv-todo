@@ -23,8 +23,6 @@ const ITEM_TAG_DEFS = {
 // 定义 CSV 文件路径
 const ITEMS_CSV_PATH = 'data/items.csv';
 
-//献祭选项不包括金星作物
-//需要任意奶、蛋的以小牛奶，小鸡蛋白色算
 //1蒜种子，1甜瓜种子, 1小麦种子；四个花种制作
 //制品有出货需求的会还原到材料上，比如需要啤酒，那么小麦的出货需求会留2，以防忘了留，勾掉啤酒的时候并不会自动让小麦需求-1
 //category的购买意味着能在一周内稳定买到/或者得到
@@ -37,10 +35,6 @@ const ITEMS_CSV_PATH = 'data/items.csv';
 // 献祭 / 任务 生成系统：数据定义
 // ============================
 
-// 收集包模式
-const DONATION_MODE_BASE = 'base';   // 基础献祭
-const DONATION_MODE_REMIXED = 'remixed'; // 混合献祭（随机包）
-
 // 献祭收集包：按大类（房间）分组
 // 每个 bundle.items 里的 name 必须与 items.csv 的 name 完全一致
 const DONATION_BUNDLE_GROUPS = [
@@ -51,7 +45,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'cr_spring_foraging',
         name: '春季采集收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '野山葵', count: 1 },
           { name: '黄水仙', count: 1 },
@@ -62,7 +55,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'cr_summer_foraging',
         name: '夏季采集收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '葡萄', count: 1 },
           { name: '香味浆果', count: 1 },
@@ -72,7 +64,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'cr_fall_foraging',
         name: '秋季采集收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '普通蘑菇', count: 1 },
           { name: '野梅', count: 1 },
@@ -83,7 +74,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'cr_winter_foraging',
         name: '冬季采集收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '冬根', count: 1 },
           { name: '水晶果', count: 1 },
@@ -94,7 +84,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'cr_construction',
         name: '建筑收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '木材', count: 99 },
           { name: '木材', count: 99 },
@@ -105,7 +94,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'cr_exotic_foraging',
         name: '异国情调采集收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '椰子', count: 1 },
           { name: '仙人掌果子', count: 1 },
@@ -127,7 +115,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'p_spring_crops',
         name: '春季作物收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '防风草', count: 1 },
           { name: '青豆', count: 1 },
@@ -138,7 +125,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'p_summer_crops',
         name: '夏季作物收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '西红柿', count: 1 },
           { name: '辣椒', count: 1 },
@@ -149,7 +135,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'p_fall_crops',
         name: '秋季作物收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '玉米', count: 1 },
           { name: '茄子', count: 1 },
@@ -160,7 +145,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'p_quality_crops',
         name: '高品质作物收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '防风草', quality: 'gold', qCount: 5 },
           { name: '甜瓜', quality: 'gold', qCount: 5 },
@@ -171,7 +155,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'p_animal',
         name: '动物收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '大壶牛奶', count: 1 },
           { name: '棕色大鸡蛋', count: 1 },
@@ -184,7 +167,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'p_artisan',
         name: '工匠收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '松焦油', count: 1 },
           { name: '布料', count: 1 },
@@ -215,7 +197,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'ft_river',
         name: '河鱼收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '太阳鱼', count: 1 },
           { name: '鲶鱼', count: 1 },
@@ -226,7 +207,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'ft_lake',
         name: '湖鱼收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '大嘴鲈鱼', count: 1 },
           { name: '鲤鱼', count: 1 },
@@ -237,7 +217,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'ft_ocean',
         name: '海鱼收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '沙丁鱼', count: 1 },
           { name: '金枪鱼', count: 1 },
@@ -248,7 +227,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'ft_night',
         name: '夜间垂钓收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '大眼鱼', count: 1 },
           { name: '鲷鱼', count: 1 },
@@ -258,7 +236,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'ft_crab_pot',
         name: '蟹笼收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '龙虾', count: 1 },
           { name: '小龙虾', count: 1 },
@@ -275,7 +252,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'ft_specialty',
         name: '特色鱼类收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '河豚', count: 1 },
           { name: '鬼鱼', count: 1 },
@@ -292,7 +268,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'br_blacksmith',
         name: '铁匠的收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '铜锭', count: 1 },
           { name: '铁锭', count: 1 },
@@ -302,7 +277,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'br_geologist',
         name: '地理学家的收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '石英', count: 1 },
           { name: '地晶', count: 1 },
@@ -313,7 +287,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'br_adventurer',
         name: '冒险家的收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '史莱姆泥', count: 99 },
           { name: '蝙蝠翅膀', count: 10 },
@@ -330,7 +303,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'bb_chef',
         name: '厨师收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '枫糖浆', count: 1 },
           { name: '蕨菜', count: 1 },
@@ -353,7 +325,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'bb_dye',
         name: '染料收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '红蘑菇', count: 1 },
           { name: '海胆', count: 1 },
@@ -366,7 +337,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'bb_field_research',
         name: '土地研究收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '紫蘑菇', count: 1 },
           { name: '鹦鹉螺', count: 1 },
@@ -377,7 +347,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'bb_fodder',
         name: '饲料收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '小麦', count: 10 },
           { name: '干草', count: 10 },
@@ -387,7 +356,6 @@ const DONATION_BUNDLE_GROUPS = [
       {
         id: 'bb_enchanter',
         name: '魔法师收集包',
-        mode: DONATION_MODE_BASE,
         items: [
           { name: '橡树树脂', count: 1 },
           { name: '果酒', count: 1 },
@@ -402,8 +370,7 @@ const DONATION_BUNDLE_GROUPS = [
     bundles: [
       {
         id: 'missing_bundle',
-        name: '失踪的收集包',
-        mode: DONATION_MODE_BASE, // 基础献祭也包含
+        name: '失踪的收集包', // 基础献祭也包含
         items: [
           { name: '果酒', quality: 'silver', qCount: 1 },
           { name: '恐龙蛋黄酱', count: 1 },
@@ -431,7 +398,6 @@ const DONATION_BUNDLE_GROUPS = [
       }
     ]
   },
-  // 继续添加其它房间...
 ];
 
 const REMIX_BUNDLE_DEFS = [
@@ -442,9 +408,7 @@ const REMIX_BUNDLE_DEFS = [
       {
         id: 'rm_cr_spring_foraging',
         name: '（混合）春季采集收集包',
-        mode: DONATION_MODE_REMIXED,
         baseBundleId: 'cr_spring_foraging',
-        remixType: 'permanent', 
         needSlots: 4,
         items: [
           { name: '野山葵', count:1 },
@@ -457,9 +421,7 @@ const REMIX_BUNDLE_DEFS = [
       {
         id: 'rm_cr_winter_foraging',
         name: '（混合）冬季采集收集包',
-        mode: DONATION_MODE_REMIXED,
         baseBundleId: 'cr_winter_foraging',
-        remixType: 'permanent', 
         needSlots: 4,
         items: [
           { name: '冬根', count: 1 },
@@ -472,18 +434,15 @@ const REMIX_BUNDLE_DEFS = [
       {
         id: 'rm_cr_sticky',
         name: '黏糊糊收集包',
-        mode: DONATION_MODE_REMIXED,
         baseBundleId: 'cr_construction',
-        remixType: 'random', 
         items: [
           { name:'树液', count:500 },
         ],
-        replacements: ['rm_cr_forest'],
       },
       {
         id: 'rm_cr_forest',
         name: '森林收集包',
-        mode: DONATION_MODE_REMIXED,
+        baseBundleId: 'cr_construction',
         needSlots: 3,
         items: [
           { name:'苔藓', count:10 },
@@ -495,18 +454,306 @@ const REMIX_BUNDLE_DEFS = [
       {
         id: 'rm_cr_wild_medicine',
         name: '野生药材收集包',
-        mode: DONATION_MODE_REMIXED,
         baseBundleId: 'cr_exotic_foraging',
-        remixType: 'random', 
         items: [
           { name:'紫蘑菇', count:5 },
           { name:'蕨菜', count:5 },
           { name:'白藻', count:5 },
           { name:'啤酒花', count:5 },
         ],
-        replacements: [],
       },
     ]
+  },
+  {
+    id: 'pantry_rm',
+    name: '茶水间',
+    bundles: [
+      {
+        id: 'rm_p_spring_crops',
+        name: '（混合）春季作物收集包',
+        baseBundleId: 'p_spring_crops',
+        needSlots: 4,
+        items: [
+          { name: '防风草', count: 1 },
+          { name: '青豆', count: 1 },
+          { name: '花椰菜', count: 1 },
+          { name: '土豆', count: 1 },
+          { name: '甘蓝菜', count: 1 },
+          { name: '胡萝卜', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_p_summer_crops',
+        name: '（混合）夏季作物收集包',
+        baseBundleId: 'p_summer_crops',
+        needSlots: 4,
+        items: [
+          { name: '西红柿', count: 1 },
+          { name: '辣椒', count: 1 },
+          { name: '蓝莓', count: 1 },
+          { name: '甜瓜', count: 1 },
+          { name: '金皮西葫芦', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_p_fall_crops',
+        name: '（混合）秋季作物收集包',
+        baseBundleId: 'p_fall_crops',
+        needSlots: 4,
+        items: [
+          { name: '玉米', count: 1 },
+          { name: '茄子', count: 1 },
+          { name: '南瓜', count: 1 },
+          { name: '山药', count: 1 },
+          { name: '西蓝花', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_p_quality_crops',
+        name: '（混合）高品质作物收集包',
+        baseBundleId: 'p_quality_crops',
+        needSlots: 4,
+        items: [
+          { name: '防风草', quality: 'gold', qCount: 5 },
+          { name: '青豆', quality: 'gold', qCount: 5 },
+          { name: '土豆', quality: 'gold', qCount: 5 },
+          { name: '花椰菜', quality: 'gold', qCount: 5 },
+          { name: '甜瓜', quality: 'gold', qCount: 5 },
+          { name: '蓝莓', quality: 'gold', qCount: 5 },
+          { name: '辣椒', quality: 'gold', qCount: 5 },
+          { name: '南瓜', quality: 'gold', qCount: 5 },
+          { name: '茄子', quality: 'gold', qCount: 5 },
+          { name: '玉米', quality: 'gold', qCount: 5 },
+        ],
+      },
+      {
+        id: 'rm_p_rare_crops',
+        name: '稀有作物收集包',
+        baseBundleId: 'p_quality_crops',
+        items: [
+          { name: '上古水果', count: 1 },
+          { name: '宝石甜莓', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_p_fisher',
+        name: '渔夫收集包',
+        baseBundleId: 'p_animal',
+        items: [
+          { name: '鱼籽', count: 15 },
+          { name: '腌鱼籽', count: 15 },
+          { name: '鱿鱼墨汁', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_p_garden',
+        name: '花园收集包',
+        baseBundleId: 'p_animal',
+        items: [
+          { name: '郁金香', count: 1 },
+          { name: '蓝爵', count: 1 },
+          { name: '夏季亮片', count: 1 },
+          { name: '向日葵', count: 1 },
+          { name: '玫瑰仙子', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_p_brewer',
+        name: '酿酒师收集包',
+        baseBundleId: 'p_artisan',
+        items: [
+          { name: '蜜蜂酒', count: 1 },
+          { name: '蜂蜜', count: 1 },
+          { name: '淡啤酒', count: 1 },
+          { name: '啤酒花', count: 1 },
+          { name: '果酒', count: 1 },
+          { name: '果汁', count: 1 },
+          { name: '绿茶', count: 1 },
+          { name: '茶叶', count: 1 },
+        ],
+        notes: [
+          { item: '蜂蜜', text: '用于制作蜜蜂酒' },
+          { item: '啤酒花', text: '用于制作淡啤酒' },
+          { item: '茶叶', text: '用于制作绿茶' },
+        ]
+      },
+    ]
+  },
+  {
+    id: 'fish_tank_rm',
+    name: '鱼缸',
+    bundles: [
+      {
+        id: 'rm_ft_master_fisher',
+        name: '钓鱼大师收集包',
+        baseBundleId: 'ft_specialty',
+        items: [
+          { name: '岩浆鳗鱼', count: 1 },
+          { name: '蝎鲤鱼', count: 1 },
+          { name: '章鱼', count: 1 },
+          { name: '水滴鱼', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_ft_quality_fish',
+        name: '优质鱼收集包',
+        baseBundleId: 'ft_specialty',
+        items: [
+          { name: '大嘴鲈鱼', quality: 'gold', qCount: 1 },
+          { name: '西鲱', quality: 'gold', qCount: 1 },
+          { name: '金枪鱼', quality: 'gold', qCount: 1 },
+          { name: '大眼鱼', quality: 'gold', qCount: 1 },
+        ],
+      },
+    ]
+  },
+  {
+    id: 'boiler_room_rm',
+    name: '锅炉房',
+    bundles: [
+      {
+        id: 'rm_br_treasure_hunter',
+        name: '宝藏猎人收集包',
+        baseBundleIds: ['br_blacksmith', 'br_geologist', 'br_adventurer'],
+        items: [
+          { name: '紫水晶', count: 1 },
+          { name: '海蓝宝石', count: 1 },
+          { name: '钻石', count: 1 },
+          { name: '绿宝石', count: 1 },
+          { name: '红宝石', count: 1 },
+          { name: '黄水晶', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_br_engineer',
+        name: '工程师收集包',
+        baseBundleIds: ['br_blacksmith', 'br_geologist', 'br_adventurer'],
+        items: [
+          { name: '铱矿石', count: 1 },
+          { name: '电池组', count: 1 },
+          { name: '精炼石英', count: 5 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'bulletin_board_rm',
+    name: '布告栏',
+    bundles: [
+      {
+        id: 'rm_bb_dye',
+        name: '染料收集包',
+        needSlots: 6,
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '红蘑菇', count: 1 },
+          { name: '甜菜', count: 1 },
+
+          { name: '海胆', count: 1 },
+          { name: '苋菜', count: 1 },
+
+          { name: '向日葵', count: 1 },
+          { name: '杨桃', count: 1 },
+
+          { name: '鸭毛', count: 1 },
+          { name: '仙人掌果子', count: 1 },
+
+          { name: '海蓝宝石', count: 1 },
+          { name: '蓝莓', count: 1 },
+
+          { name: '红叶卷心菜', count: 1 },
+          { name: '铱锭', count: 1 },
+        ],
+      },
+      {
+        id: 'rm_bb_chef',
+        name: '家庭厨师收集包',
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '蛋（白色）', count: 10 },
+          { name: '牛奶', count: 10 },
+          { name: '大麦粉', count: 100 },
+        ],
+      },
+      {
+        id: 'rm_bb_kids',
+        name: '儿童收集包',
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '美洲大树莓', count: 10 },
+          { name: '饼干', count: 1 },
+          { name: '大麦粉', count: 1 },
+          { name: '糖', count: 2 },
+          { name: '蛋（白色）', count: 1 },
+          { name: '古代玩偶', count: 1 },
+          { name: '冰淇淋', count: 1 },
+          { name: '牛奶', count: 1 },
+        ],
+        notes: [
+          { item: '大麦粉', text: '用于制作饼干' },
+          { item: '糖', text: '用于制作饼干和冰激凌' },
+          { item: '蛋（白色）', text: '1个由于制作饼干' },
+          { item: '牛奶', text: '用于制作冰激凌' },
+        ]
+      },
+      {
+        id: 'rm_bb_forager',
+        name: '采集者收集包',
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '美洲大树莓', count: 50 },
+          { name: '黑莓', count: 50 },
+          { name: '野梅', count: 15 },
+        ],
+      },
+      {
+        id: 'rm_bb_helpful',
+        name: '热心居民收集包',
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '兑奖券', count: 1 },
+          { name: '谜之盒', count: 5 },
+        ],
+      },
+      {
+        id: 'rm_bb_spirit_eve',
+        name: '幽灵之夜收集包',
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '南瓜灯', count: 1 },
+          { name: '南瓜', count: 1 },
+          { name: '玉米', count: 10 },
+          { name: '蝙蝠翅膀', count: 10 },
+        ],
+        notes: [
+          { item: '南瓜', text: '用于制作南瓜灯' },
+        ]
+      },
+      {
+        id: 'rm_bb_winter_star',
+        name: '冬日之星收集包',
+        baseBundleIds: ['bb_chef','bb_dye','bb_field_research','bb_fodder','bb_enchanter'], 
+        items: [
+          { name: '冬青树', count: 5 },
+          { name: '葡萄干布丁', count: 1 },
+          { name: '野梅', count: 2 },
+          { name: '大麦粉', count: 2 },
+          { name: '糖', count: 1 },
+          { name: '塞料面包', count: 1 },
+          { name: '蔓越莓', count: 1 },
+          { name: '榛子', count: 1 },
+          { name: '霜瓜', count: 5 },
+        ],
+        notes: [
+          { item: '野梅', text: '用于制作葡萄干布丁' },
+          { item: '大麦粉', text: '用于制作葡萄干布丁和塞料面包' },
+          { item: '糖', text: '1个由于制作葡萄干布丁' },
+          { item: '牛奶', text: '用于制作冰激凌' },
+          { item: '蔓越莓', text: '用于制作塞料面包' },
+          { item: '榛子', text: '用于制作塞料面包' },
+        ]
+      },
+    ],
   }
 ];
 

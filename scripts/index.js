@@ -452,16 +452,11 @@ function computeDonationNeedsAndSources() {
 
       if (!baseId) return;
 
-      // replacement 为空：默认不替换；但如果“该基础包只有唯一混合包”，则自动用那个混合包
-      let effectiveRepId = repId;
-      if (!effectiveRepId) {
-        const uniq = findUniqueRemixBundleForBase(baseId);
-        if (uniq && uniq.id) effectiveRepId = uniq.id;
-      }
-      if (!effectiveRepId) return;
+      // replacement 为空：表示没选过 → 沿用基础包（不替换）
+      if (!repId) return;
 
       const baseInfo = byId.get(baseId);
-      const repInfo = byId.get(effectiveRepId);
+      const repInfo = byId.get(repId);
       if (!baseInfo || !repInfo) return;
 
       // 生成 replacement 的最终 items（支持 needSlots 的 4选3）
@@ -1167,18 +1162,68 @@ function findUniqueRemixBundleForBase(baseBundleId) {
   return hits.length === 1 ? hits[0] : null;
 }
 
+function buildRemixOptionsByBaseId() {
+  const byBase = new Map(); // baseId -> [{id,name,needSlots}]
+  const groups = (typeof REMIX_BUNDLE_DEFS !== 'undefined' && Array.isArray(REMIX_BUNDLE_DEFS))
+    ? REMIX_BUNDLE_DEFS
+    : [];
+
+  groups.forEach(g => {
+    (g.bundles || []).forEach(b => {
+      // 兼容：baseBundleId (string) 或 baseBundleIds (string[])
+      let baseIds = [];
+
+      if (Array.isArray(b.baseBundleIds)) {
+        baseIds = b.baseBundleIds.map(x => (x || '').trim()).filter(Boolean);
+      } else {
+        const one = (b.baseBundleId || '').trim();
+        if (one) baseIds = [one];
+      }
+
+      if (!baseIds.length) return;
+
+      baseIds.forEach(baseId => {
+        if (!byBase.has(baseId)) byBase.set(baseId, []);
+        byBase.get(baseId).push({
+          id: b.id,
+          name: b.name || b.id,
+          needSlots: Number(b.needSlots || 0),
+        });
+      });
+    });
+  });
+
+  // 稳定排序：按名称
+  byBase.forEach(list => list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh')));
+  return byBase;
+}
+
+
 
 function renderMixedDonationPanel() {
   const root = document.getElementById('mixed-donation-panel');
   if (!root) return;
-  root.innerHTML = '';
-  const byId = indexDonationBundlesById();
 
-  if (typeof DONATION_BUNDLE_GROUPS === 'undefined') {
-    root.textContent = '未定义 DONATION_BUNDLE_GROUPS（请在 data.js 中添加）';
+  root.innerHTML = '';
+
+  const byId = indexDonationBundlesById();
+  const remixByBase = buildRemixOptionsByBaseId();
+
+  // eligible base bundles：只有存在 >=1 个候选混合包的基础包才进入第一下拉
+  const allBase = getAllDonationBundlesFlat().filter(b => b.mode === DONATION_MODE_BASE);
+  const eligibleBases = allBase
+    .filter(b => remixByBase.has(b.id) && (remixByBase.get(b.id) || []).length > 0)
+    .sort((a, b) => `${a.groupName}/${a.name}`.localeCompare(`${b.groupName}/${b.name}`, 'zh'));
+
+  if (!eligibleBases.length) {
+    const empty = document.createElement('div');
+    empty.className = 'mixed-empty';
+    empty.textContent = '未检测到任何可替换的基础献祭包（REMIX_BUNDLE_DEFS 中没有 baseBundleId 映射）。';
+    root.appendChild(empty);
     return;
   }
 
+  // 没规则时提示
   if (!mixedDonationAppliedRules.length) {
     const empty = document.createElement('div');
     empty.className = 'mixed-empty';
@@ -1186,40 +1231,60 @@ function renderMixedDonationPanel() {
     root.appendChild(empty);
   }
 
-  const allBundles = getAllDonationBundlesFlat();
-  const baseBundles = allBundles.filter(b => b.mode === DONATION_MODE_BASE);
-
   mixedDonationAppliedRules.forEach((rule, idx) => {
     const row = document.createElement('div');
     row.className = 'mixed-rule';
 
-    // baseBundleId（文本 + 下拉二选一：为了你录数据阶段方便，这里直接给下拉）
+    // ===== base select（仅 eligible）=====
     const baseSel = document.createElement('select');
-    baseBundles.forEach(b => {
+    eligibleBases.forEach(b => {
       const opt = document.createElement('option');
       opt.value = b.id;
-      opt.textContent = `${b.groupName} / ${b.name} (${b.id})`;
+      opt.textContent = `${b.groupName} / ${b.name}`;
       baseSel.appendChild(opt);
     });
-    baseSel.value = rule.baseBundleId || (baseBundles[0]?.id || '');
 
-    // replaceWithBundleId：允许留空（不替换）
+    // 默认值：已有 baseId 就用它，否则用第一个 eligible
+    rule.baseBundleId = rule.baseBundleId || eligibleBases[0].id;
+    baseSel.value = rule.baseBundleId;
+
+    // ===== replacement select（只显示该 base 的候选 remixed bundles）=====
     const replaceSel = document.createElement('select');
-    const optEmpty = document.createElement('option');
-    optEmpty.value = '';
-    optEmpty.textContent = '（不替换：继续用基础包）';
-    replaceSel.appendChild(optEmpty);
 
-    // 这里先允许选择“任意 bundle id”作为替换目标（你后面再把选项收敛到“xxx 可被 yyy/zzz 替换”）
-    allBundles.forEach(b => {
-      const opt = document.createElement('option');
-      opt.value = b.id;
-      opt.textContent = `${b.groupName} / ${b.name} (${b.id})`;
-      replaceSel.appendChild(opt);
-    });
-    replaceSel.value = rule.replaceWithBundleId || '';
+    function fillReplaceOptionsForBase(baseId) {
+      replaceSel.innerHTML = '';
 
-    // 删除按钮
+      // 占位空值：不等于“沿用基础包选项”，只是“未选择”
+      const optEmpty = document.createElement('option');
+      optEmpty.value = '';
+      optEmpty.textContent = '（未选择：沿用基础包）';
+      replaceSel.appendChild(optEmpty);
+
+      const options = remixByBase.get(baseId) || [];
+      options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.needSlots > 0 ? `${o.name}（需选${o.needSlots}）` : o.name;
+        replaceSel.appendChild(opt);
+      });
+
+      // 若当前 rule 的 replacement 不属于该 base 的候选，则清空
+      const validSet = new Set(options.map(o => o.id));
+      if (!validSet.has(rule.replaceWithBundleId)) {
+        rule.replaceWithBundleId = '';
+        rule.pickedItemNames = [];
+      }
+      replaceSel.value = rule.replaceWithBundleId || '';
+    }
+
+    fillReplaceOptionsForBase(rule.baseBundleId);
+
+    // ===== info 文案 =====
+    const info = document.createElement('div');
+    info.className = 'mixed-info';
+    info.textContent = '确认生效后：选择的混合包会覆盖该基础包的献祭需求';
+
+    // ===== 删除 =====
     const delBtn = document.createElement('button');
     delBtn.className = 'danger';
     delBtn.textContent = '删除';
@@ -1228,93 +1293,104 @@ function renderMixedDonationPanel() {
       renderMixedDonationPanel();
     });
 
-    // 说明列（可选）
-    const info = document.createElement('div');
-    info.className = 'mixed-info';
-    info.textContent = '确认生效后：用替换包的需求覆盖掉该基础包的需求';
+    // ===== 事件：改 base 时刷新 replacement 列表 =====
+    baseSel.addEventListener('change', () => {
+      rule.baseBundleId = baseSel.value;
+      rule.replaceWithBundleId = '';
+      rule.pickedItemNames = [];
+      fillReplaceOptionsForBase(rule.baseBundleId);
+      renderMixedDonationPanel(); // 重新渲染以更新多选区
+    });
 
+    // ===== 事件：改 replacement 时清空多选并重渲染 =====
+    replaceSel.addEventListener('change', () => {
+      rule.replaceWithBundleId = replaceSel.value;
+      rule.pickedItemNames = [];
+      renderMixedDonationPanel(); // 重新渲染以显示/隐藏多选区
+    });
 
     row.appendChild(baseSel);
     row.appendChild(replaceSel);
+    row.appendChild(info);
+    row.appendChild(delBtn);
 
-    // === 多选区：当替换包有 needSlots 时显示（支持“replacement 本身也是 4选3”）===
+    // ===== 多选区：仅当选中的 remixed bundle 有 needSlots 时显示 =====
     const repId = (rule.replaceWithBundleId || '').trim();
-    let effectiveRepId = repId;
-
-    // 兼容：replacement 为空但唯一混合包
-    if (!effectiveRepId) {
-      const uniq = findUniqueRemixBundleForBase((rule.baseBundleId || '').trim());
-      if (uniq && uniq.id) effectiveRepId = uniq.id;
-    }
-
-    if (effectiveRepId) {
-      const repInfo = byId.get(effectiveRepId);
+    if (repId) {
+      const repInfo = byId.get(repId);
       const repBundle = repInfo?.bundle;
       const needSlots = Number(repBundle?.needSlots || 0);
 
       if (needSlots > 0) {
-        const pickWrap = document.createElement('div');
-        pickWrap.className = 'mixed-pick';
-
-        const title = document.createElement('div');
-        title.className = 'mixed-pick-title';
-        title.textContent = `该替换包需要从候选中选 ${needSlots} 个：`;
-        pickWrap.appendChild(title);
-
-        const list = document.createElement('div');
-        list.className = 'mixed-pick-list';
-
-        const allItems = Array.isArray(repBundle.items) ? repBundle.items : [];
-        const picked = new Set(Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : []);
-
-        allItems.forEach(it => {
-          const label = document.createElement('label');
-          label.className = 'mixed-pick-item';
-
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = picked.has(it.name);
-
-          cb.addEventListener('change', () => {
-            const cur = new Set(Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : []);
-
-            if (cb.checked) cur.add(it.name);
-            else cur.delete(it.name);
-
-            // 超过 needSlots：禁止（撤回本次勾选）
-            if (cur.size > needSlots) {
-              cb.checked = false;
-              return;
-            }
-
-            rule.pickedItemNames = Array.from(cur);
-          });
-
-          label.appendChild(cb);
-          label.appendChild(document.createTextNode(it.name));
-          list.appendChild(label);
-        });
-
-        pickWrap.appendChild(list);
-        row.appendChild(pickWrap);
+        row.appendChild(renderNeedSlotsPicker(repBundle, rule));
       }
     }
-
-
-    row.appendChild(info);
-    row.appendChild(delBtn);
-
-    // 临时把 DOM 值写回 rule（因为现在不存储，直接内存保持即可）
-    baseSel.addEventListener('change', () => (rule.baseBundleId = baseSel.value));
-    replaceSel.addEventListener('change', () => {
-      rule.replaceWithBundleId = replaceSel.value;
-      rule.pickedItemNames = []; // 切换替换包时，清空之前的勾选
-      renderMixedDonationPanel(); // 重新渲染以显示/隐藏多选区
-    });
 
     root.appendChild(row);
   });
 }
+
+function renderNeedSlotsPicker(repBundle, rule) {
+  const needSlots = Number(repBundle.needSlots || 0);
+  const allItems = Array.isArray(repBundle.items) ? repBundle.items : [];
+
+  const picked = new Set(Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : []);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'mixed-pick';
+
+  const title = document.createElement('div');
+  title.className = 'mixed-pick-title';
+  title.textContent = `该混合包需从候选中选择 ${needSlots} 个：`;
+  wrap.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'mixed-pick-list';
+
+  allItems.forEach(it => {
+    const label = document.createElement('label');
+    label.className = 'mixed-pick-item';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = picked.has(it.name);
+
+    cb.addEventListener('change', () => {
+      const cur = new Set(Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : []);
+
+      if (cb.checked) cur.add(it.name);
+      else cur.delete(it.name);
+
+      // 超过 needSlots：撤回
+      if (cur.size > needSlots) {
+        cb.checked = false;
+        return;
+      }
+
+      rule.pickedItemNames = Array.from(cur);
+      // 不强制重渲染：选择过程不闪烁；确认生效时会统一重算
+    });
+
+    label.appendChild(cb);
+
+    const text = document.createElement('span');
+    text.className = 'mixed-pick-text';
+    text.textContent = `${it.name}${Number(it.count || 0) > 0 ? ` ×${it.count}` : ''}`;
+
+    label.appendChild(text);
+    list.appendChild(label);
+  });
+
+  wrap.appendChild(list);
+
+  const foot = document.createElement('div');
+  foot.className = 'mixed-pick-foot';
+  foot.textContent = `已选：${picked.size}/${needSlots}`;
+  wrap.appendChild(foot);
+
+  return wrap;
+}
+
 
 function setupMixedDonationPanelEvents() {
   const btnAdd = document.getElementById('mixed-donation-add-rule');
