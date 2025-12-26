@@ -502,6 +502,12 @@ function computeDonationNeedsAndSources() {
   return needMap;
 }
 
+function getBaseDonationBundleGroups() {
+  return (typeof DONATION_BUNDLE_GROUPS !== 'undefined' && Array.isArray(DONATION_BUNDLE_GROUPS))
+    ? DONATION_BUNDLE_GROUPS
+    : [];
+}
+
 function getAllDonationBundleGroups() {
   const groups = [];
   if (typeof DONATION_BUNDLE_GROUPS !== 'undefined' && Array.isArray(DONATION_BUNDLE_GROUPS)) {
@@ -1137,7 +1143,7 @@ function resetAllProgress() {
 // =====================
 
 function getAllDonationBundlesFlat() {
-  const groups = getAllDonationBundleGroups();
+  const groups = getBaseDonationBundleGroups();
   const all = [];
 
   groups.forEach(g => {
@@ -1162,9 +1168,18 @@ function findUniqueRemixBundleForBase(baseBundleId) {
     : [];
 
   const hits = [];
+
   groups.forEach(g => {
     (g.bundles || []).forEach(b => {
-      if ((b.baseBundleId || '').trim() === baseBundleId) hits.push(b);
+      let baseIds = [];
+      if (Array.isArray(b.baseBundleIds)) {
+        baseIds = b.baseBundleIds.map(x => (x || '').trim()).filter(Boolean);
+      } else {
+        const one = (b.baseBundleId || '').trim();
+        if (one) baseIds = [one];
+      }
+
+      if (baseIds.includes(baseBundleId)) hits.push(b);
     });
   });
 
