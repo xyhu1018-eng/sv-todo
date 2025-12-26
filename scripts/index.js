@@ -7,7 +7,6 @@ let items = [];       // 表格里的物品数据
 let globalNotes = []; // 全局备注数组：[{id, text, done}]
 
 // ===== 献祭/任务：当前勾选集合 =====
-let selectedDonationBundleIds = new Set();
 let selectedQuestIds = new Set();
 
 // 反向索引：用于“来源 tooltip”
@@ -1534,33 +1533,6 @@ function setupEvents() {
     favToggle.addEventListener('change', renderTable);
   }
 
-    // 献祭面板全局按钮
-  const btnBase = document.getElementById('donation-select-base');
-  const btnNone = document.getElementById('donation-select-none');
-  const btnAll = document.getElementById('donation-select-all');
-
-  if (btnBase) btnBase.addEventListener('click', () => {
-    selectedDonationBundleIds = getDefaultSelectedDonationBundleIds();
-    syncDonationCheckboxes();
-    recomputeDynamicNeeds();
-    renderTable();
-  });
-
-  if (btnNone) btnNone.addEventListener('click', () => {
-    selectedDonationBundleIds = new Set();
-    syncDonationCheckboxes();
-    recomputeDynamicNeeds();
-    renderTable();
-  });
-
-  if (btnAll) btnAll.addEventListener('click', () => {
-    const s = new Set();
-    DONATION_BUNDLE_GROUPS.forEach(g => g.bundles.forEach(b => s.add(b.id)));
-    selectedDonationBundleIds = s;
-    syncDonationCheckboxes();
-    recomputeDynamicNeeds();
-    renderTable();
-  });
 
   // 任务面板全局按钮
   const qNone = document.getElementById('quest-select-none');
@@ -1632,7 +1604,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadNotes();
 
   // 初始化默认勾选
-  selectedDonationBundleIds = getDefaultSelectedDonationBundleIds();
   selectedQuestIds = getDefaultSelectedQuestIds();
 
   // 先算一遍动态需求
