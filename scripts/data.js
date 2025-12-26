@@ -757,20 +757,222 @@ const REMIX_BUNDLE_DEFS = [
 // 任务：按大类分组（可扩展新增类别）
 const QUEST_GROUPS = [
   {
-    id: 'story',
-    name: '剧情任务',
+    id: 'story_1',
+    name: '剧情任务第一年',
     quests: [
       {
-        id: 'q_story_bridge',
-        name: '修理海滩桥',
+        id: 's1_smdq',
+        name: '神秘的齐',
         items: [
-          { name: '木材', count: 300 },
-        ],
-        notes: [
-          { item: '木材', text: '前期可砍树；也可在罗宾处购买（示例）' },
+          { name: '电池组', count: 1 },
+          { name: '彩虹贝壳', count: 1 },
+          { name: '甜菜', count: 10 },
+          { name: '太阳精华', count: 1 },
         ],
       },
-      // ...更多剧情任务
+      {
+        id: 's1_qddqq',
+        name: '乔迪的请求',
+        items: [
+          { name: '花椰菜', count: 1 },
+        ],
+      },
+      {
+        id: 's1_pmkl',
+        name: '潘姆渴了',
+        items: [
+          { name: '淡啤酒', count: 1 },
+          { name: '啤酒花', count: 1 },
+        ],
+        notes: [
+          { item: '啤酒花', text: '用于制作淡啤酒' },
+        ],
+      },
+      {
+        id: 's1_zwyj',
+        name: '作物研究',
+        items: [
+          { name: '甜瓜', count: 1 },
+        ],
+      },
+      {
+        id: 's1_xgly',
+        name: '膝盖疗养',
+        items: [
+          { name: '辣椒', count: 1 },
+        ],
+      },
+      {
+        id: 's1_tnhx',
+        name: '讨牛欢心',
+        items: [
+          { name: '苋菜', count: 1 },
+        ],
+      },
+      {
+        id: 's1_dkng',
+        name: '雕刻南瓜',
+        items: [
+          { name: '南瓜', count: 1 },
+        ],
+      },
+      {
+        id: 's1_qgzt',
+        name: '奇怪纸条',
+        items: [
+          { name: '枫糖浆', count: 1 },
+        ],
+      },
+      {
+        id: 's1_btyy',
+        name: '捕条鱿鱼',
+        items: [
+          { name: '鱿鱼', count: 1 },
+        ],
+      },
+      {
+        id: 's1_kltdnl',
+        name: '克林特的努力',
+        items: [
+          { name: '紫水晶', count: 1 },
+        ],
+      },
+      {
+        id: 's1_hasj',
+        name: '黑暗试剂',
+        items: [
+          { name: '虚空精华', count: 1 },
+        ],
+      },
+      {
+        id: 's1_kltdxm',
+        name: '克林特的小忙',
+        items: [
+          { name: '铁锭', count: 1 },
+        ],
+      },
+      {
+        id: 's1_lbdqq',
+        name: '罗宾的请求',
+        items: [
+          { name: '硬木', count: 10 },
+        ],
+      },
+      {
+        id: 's1_hyt',
+        name: '烩鱼汤',
+        items: [
+          { name: '青花鱼', count: 1 },
+        ],
+      },
+      {
+        id: 's1_mndqq',
+        name: '玛妮的请求',
+        items: [
+          { name: '山洞萝卜', count: 1 },
+        ],
+      },
+      {
+        id: 's1_sgy',
+        name: '砂锅鱼',
+        items: [
+          { name: '大嘴鲈鱼', count: 1 },
+        ],
+      },
+      {
+        id: 's1_dsz',
+        name: '大树桩',
+        items: [
+          { name: '硬木', count: 100 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'story_2',
+    name: '剧情任务第二年+',
+    quests: [
+      {
+        id: 's2_xxsg',
+        name: '新鲜水果',
+        items: [
+          { name: '杏子', count: 1 },
+        ],
+      },
+      {
+        id: 's2_nndlw',
+        name: '奶奶的礼物',
+        items: [
+          { name: '韭葱', count: 1 },
+        ],
+      },
+      {
+        id: 's2_paedbg',
+        name: '皮埃尔的布告',
+        items: [
+          { name: '生鱼片', count: 1 },
+        ],
+      },
+      {
+        id: 's2_scdc',
+        name: '水产调查',
+        items: [
+          { name: '河豚', count: 1 },
+        ],
+      },
+      {
+        id: 's2_sbdxx',
+        name: '士兵的星星',
+        items: [
+          { name: '杨桃', count: 1 },
+        ],
+      },
+      {
+        id: 's2_zzdxq',
+        name: '镇长的需求',
+        items: [
+          { name: '松露油', count: 1 },
+          { name: '松露', count: 1 },
+        ],
+        notes: [
+          { item: '松露', text: '用于制作松露油' },
+        ],
+      },
+      {
+        id: 's2_zjlx',
+        name: '征集：龙虾',
+        items: [
+          { name: '龙虾', count: 1 },
+        ],
+      },
+      {
+        id: 's2_pmxydc',
+        name: '潘姆需要电池',
+        items: [
+          { name: '电池组', count: 1 },
+        ],
+      },
+      {
+        id: 's2_llfz',
+        name: '力量法杖',
+        items: [
+          { name: '铱锭', count: 1 },
+        ],
+      },
+      {
+        id: 's2_blscdxy',
+        name: '捕捞蛇齿单线鱼',
+        items: [
+          { name: '蛇齿单线鱼', count: 1 },
+        ],
+      },
+      {
+        id: 's2_yyyp',
+        name: '异域饮品',
+        items: [
+          { name: '椰子', count: 1 },
+        ],
+      },
     ],
   },
   {
@@ -778,15 +980,58 @@ const QUEST_GROUPS = [
     name: '特别任务',
     quests: [
       {
-        id: 'q_special_board_1',
-        name: '社区公告板特别委托（示例）',
+        id: 'spe_bsnl',
+        name: '宝石能量',
         items: [
-          { name: '硬木', count: 20 },
-          { name: '铁锭', count: 5 },
+          { name: '红宝石', count: 1 },
+          { name: '黄水晶', count: 1 },
+          { name: '绿宝石', count: 1 },
+          { name: '翡翠', count: 1 },
+          { name: '紫水晶', count: 1 },
+        ],
+      },
+      {
+        id: 'spe_lj',
+        name: '烈酒',
+        items: [
+          { name: '土豆', count: 12 },
         ],
         notes: [
-          { item: '硬木', text: '秘密森林/硬木树桩；注意每日上限' },
-          { item: '铁锭', text: '如果缺煤，先做煤炭窑更稳' },
+          { item: '土豆', text: '留12个，等任务开始后酿造' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ginger_island',
+    name: '姜岛任务',
+    quests: [
+      {
+        id: 'gin_bsn',
+        name: '宝石鸟',
+        items: [
+          { name: '红宝石', count: 1 },
+          { name: '黄水晶', count: 1 },
+          { name: '绿宝石', count: 1 },
+          { name: '海蓝宝石', count: 1 },
+          { name: '紫水晶', count: 1 },
+        ],
+      },
+      {
+        id: 'gin_mry',
+        name: '美人鱼解密',
+        items: [
+          { name: '长笛块', count: 5 },
+        ],
+        notes: [
+          { item: '土豆', text: '留12个，等任务开始后酿造' },
+        ],
+      },
+      {
+        id: 'gin_dxxjt',
+        name: '大猩猩祭坛',
+        items: [
+          { name: '香蕉', count: 1 },
         ],
       },
     ],
