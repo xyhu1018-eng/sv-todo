@@ -378,7 +378,7 @@ function computeDonationNeedsAndSources() {
   const srcMap = new Map();
   const noteMap = new Map();
 
-  const qNeedMap = new Map();  // 新增：星级献祭需求（不参与求和）
+  const qNeedMap = new Map();  // 星级献祭需求（不参与求和）
   // itemName -> [{quality, count, groupName, bundleName}]
 
   if (typeof DONATION_BUNDLE_GROUPS === 'undefined') {
@@ -388,10 +388,9 @@ function computeDonationNeedsAndSources() {
     return needMap;
   }
 
+  // ========= 1) 先按“全部基础包”生成基础献祭需求 =========
   DONATION_BUNDLE_GROUPS.forEach(group => {
     (group.bundles || []).forEach(bundle => {
-      if (bundle.mode !== DONATION_MODE_BASE) return;
-
       (bundle.items || []).forEach(entry => {
         const name = (entry.name || '').trim();
         if (!name) return;
@@ -402,7 +401,7 @@ function computeDonationNeedsAndSources() {
         const quality = (entry.quality || '').trim();
         const qCount = Number(entry.qCount || 0);
 
-        // 1) 普通需求：照旧累加（即使 entry 同时写了 quality，也可以允许 count 继续累加）
+        // 普通需求：累加
         if (count > 0) {
           needMap.set(name, (needMap.get(name) || 0) + count);
 
@@ -414,7 +413,7 @@ function computeDonationNeedsAndSources() {
           });
         }
 
-        // 2) 星级需求：不进入 needMap，只记录到 qNeedMap
+        // 星级需求：不进入 needMap，只记录到 qNeedMap
         if (quality) {
           if (!qNeedMap.has(name)) qNeedMap.set(name, []);
           qNeedMap.get(name).push({
@@ -437,57 +436,68 @@ function computeDonationNeedsAndSources() {
     });
   });
 
+  // 先把“基础来源”写回全局（后面替换会继续增删它们）
   donationSourcesByItem = srcMap;
   donationNotesByItem = noteMap;
-  donationQualityNeedsByItem = qNeedMap; // 新增
+  donationQualityNeedsByItem = qNeedMap;
 
-    // === 应用“混合献祭”替换规则（在基础献祭之上覆盖）===
-    const byId = indexDonationBundlesById();
+  // ========= 2) 再应用“混合献祭”替换规则（覆盖基础包贡献）=========
+  const byId = indexDonationBundlesById();
 
-    (mixedDonationAppliedRules || []).forEach(rule => {
-      const baseId = (rule.baseBundleId || '').trim();
-      const repId = (rule.replaceWithBundleId || '').trim();
-      const picked = Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : [];
+  (mixedDonationAppliedRules || []).forEach(rule => {
+    const baseId = (rule.baseBundleId || '').trim();
+    const repId = (rule.replaceWithBundleId || '').trim();
+    const picked = Array.isArray(rule.pickedItemNames) ? rule.pickedItemNames : [];
 
-      if (!baseId) return;
+    if (!baseId) return;
 
-      // replacement 为空：表示没选过 → 沿用基础包（不替换）
-      if (!repId) return;
+    // replacement 为空：默认不替换；但如果“该基础包只有唯一混合包”，则自动用那个混合包
+    let effectiveRepId = repId;
+    if (!effectiveRepId) {
+      const uniq = findUniqueRemixBundleForBase(baseId);
+      if (uniq && uniq.id) effectiveRepId = uniq.id;
+    }
+    if (!effectiveRepId) return;
 
-      const baseInfo = byId.get(baseId);
-      const repInfo = byId.get(repId);
-      if (!baseInfo || !repInfo) return;
+    const baseInfo = byId.get(baseId);
+    const repInfo = byId.get(effectiveRepId);
+    if (!baseInfo || !repInfo) return;
 
-      // 生成 replacement 的最终 items（支持 needSlots 的 4选3）
-      let repItemsOverride = null;
+    // 生成 replacement 的最终 items（支持 needSlots 的多选）
+    let repItemsOverride = null;
 
-      const repBundle = repInfo.bundle;
-      const needSlots = Number(repBundle.needSlots || 0);
+    const repBundle = repInfo.bundle;
+    const needSlots = Number(repBundle.needSlots || 0);
 
-      if (needSlots > 0) {
-        const allItems = repBundle.items || [];
+    if (needSlots > 0) {
+      const allItems = repBundle.items || [];
 
-        // 如果用户有勾选：按勾选过滤（保留原 count/quality/qCount）
-        if (picked.length > 0) {
-          const pickedSet = new Set(picked);
-          repItemsOverride = allItems.filter(it => pickedSet.has(it.name)).slice(0, needSlots);
+      if (picked.length > 0) {
+        const pickedSet = new Set(picked);
+        repItemsOverride = allItems
+          .filter(it => pickedSet.has(it.name))
+          .slice(0, needSlots);
+      } else {
+        // 只有一种可能且不想强制勾选：若候选 <= needSlots，则可直接确定；否则不替换（避免默默选错）
+        if (allItems.length <= needSlots) {
+          repItemsOverride = allItems.slice();
         } else {
-          // 兼容“只有一种可能且你不想强制勾选”的情况：
-          // 如果 items 总数本来就 <= needSlots，则无需勾选也能确定；否则未勾选就不应用替换（避免默默选错）
-          if (allItems.length <= needSlots) {
-            repItemsOverride = allItems.slice();
-          } else {
-            // 没勾选但需要从更多候选里选 needSlots 个：不应用替换（保留基础包）
-            return;
-          }
+          return;
         }
       }
-      // 1) 先减去基础包贡献
-      applyBundleContribution(baseInfo, -1, needMap, srcMap, noteMap, qNeedMap);
+    }
 
-      // 2) 再加上替换包贡献（可能使用 override items）
-      applyBundleContribution(repInfo, +1, needMap, srcMap, noteMap, qNeedMap, repItemsOverride);
-    });
+    // 1) 先减去基础包贡献
+    applyBundleContribution(baseInfo, -1, needMap, srcMap, noteMap, qNeedMap);
+
+    // 2) 再加上替换包贡献（可能使用 override items）
+    applyBundleContribution(repInfo, +1, needMap, srcMap, noteMap, qNeedMap, repItemsOverride);
+  });
+
+  // 最后再写回全局（确保替换后的来源/星级需求同步）
+  donationSourcesByItem = srcMap;
+  donationNotesByItem = noteMap;
+  donationQualityNeedsByItem = qNeedMap;
 
   return needMap;
 }
@@ -1209,7 +1219,7 @@ function renderMixedDonationPanel() {
   const remixByBase = buildRemixOptionsByBaseId();
 
   // eligible base bundles：只有存在 >=1 个候选混合包的基础包才进入第一下拉
-  const allBase = getAllDonationBundlesFlat().filter(b => b.mode === DONATION_MODE_BASE);
+  const allBase = getAllDonationBundlesFlat();
   const eligibleBases = allBase
     .filter(b => remixByBase.has(b.id) && (remixByBase.get(b.id) || []).length > 0)
     .sort((a, b) => `${a.groupName}/${a.name}`.localeCompare(`${b.groupName}/${b.name}`, 'zh'));
