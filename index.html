@@ -82,16 +82,22 @@
           <button id="mixed-donation-apply" class="primary">确认生效</button>
         </div>
       </details>
-      <details class="gen-panel">
-        <summary>任务（勾选后自动生成“任务”需求）</summary>
+      <details id="quest-details" class="gen-panel">
+        <summary>任务（选择后点“确认生效”）</summary>
+
+        <div class="hint">
+          勾选任务后点 <strong>确认生效</strong>，会将所选任务的需求汇总到主表的“任务”列。<br/>
+        </div>
+
         <div class="panel-actions">
           <button id="quest-select-none">全不选</button>
           <button id="quest-select-all">全选</button>
+          <button id="quest-apply" class="primary">确认生效</button>
         </div>
-        <div id="quest-panel" class="panel-body">
-          <!-- JS 动态渲染：大类 + 任务 checkbox -->
-        </div>
+
+        <div id="quest-panel" class="panel-body"></div>
       </details>
+
     </section>
 
     <!-- 单例 tooltip（长按/点小三角都会用它） -->

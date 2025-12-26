@@ -8,6 +8,8 @@ let globalNotes = []; // 全局备注数组：[{id, text, done}]
 
 // ===== 献祭/任务：当前勾选集合 =====
 let selectedQuestIds = new Set();
+let pendingQuestIds = new Set();
+let questNotesByItem = new Map(); // itemName -> [ "【组/任务】备注", ... ]
 
 // 反向索引：用于“来源 tooltip”
 let donationSourcesByItem = new Map(); // itemName -> [{groupName,bundleName,count}]
@@ -611,19 +613,22 @@ function applyBundleContribution({ group, bundle }, op, needMap, srcMap, noteMap
 function computeQuestNeedsAndSources() {
   const needMap = new Map();
   const srcMap = new Map();
+  const noteMap = new Map();
 
   if (typeof QUEST_GROUPS === 'undefined') {
     questSourcesByItem = new Map();
+    questNotesByItem = new Map();
     return needMap;
   }
 
   QUEST_GROUPS.forEach(group => {
-    group.quests.forEach(quest => {
+    (group.quests || []).forEach(quest => {
       if (!selectedQuestIds.has(quest.id)) return;
 
       (quest.items || []).forEach(entry => {
-        const name = entry.name;
+        const name = (entry.name || '').trim();
         const count = Number(entry.count || 0);
+        if (!name || count <= 0) return;
 
         needMap.set(name, (needMap.get(name) || 0) + count);
 
@@ -634,10 +639,20 @@ function computeQuestNeedsAndSources() {
           count
         });
       });
+
+      (quest.notes || []).forEach(n => {
+        const itemName = (n.item || '').trim();
+        const text = (n.text || '').trim();
+        if (!itemName || !text) return;
+
+        if (!noteMap.has(itemName)) noteMap.set(itemName, []);
+        noteMap.get(itemName).push(`【${group.name} / ${quest.name}】${text}`);
+      });
     });
   });
 
   questSourcesByItem = srcMap;
+  questNotesByItem = noteMap;
   return needMap;
 }
 
@@ -1061,10 +1076,11 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
           title: '来源（任务）：',
           sources: questSourcesByItem.get(item.name) || [],
           sourceLine: (s) => `- ${s.groupName} / ${s.questName} ×${s.count}`,
+          extraTitle: '任务备注：',
+          extraLines: questNotesByItem.get(item.name) || [],
         });
         attachCellInfoTooltip(td, tip);
       }
-
       tr.appendChild(td);
     });
 
@@ -1450,74 +1466,59 @@ function setupMixedDonationPanelEvents() {
   }
 }
 
+/**
+ * 渲染任务选择面板（两层：分类 -> 任务）
+ * checkbox 只改 pendingQuestIds，不触发重算
+ */
+let pendingQuestIds = new Set();
+
 function renderQuestPanel() {
   const root = document.getElementById('quest-panel');
   if (!root) return;
+
   root.innerHTML = '';
 
-  if (typeof QUEST_GROUPS === 'undefined') {
-    root.textContent = '未定义 QUEST_GROUPS（请在 data.js 中添加）';
+  if (typeof QUEST_GROUPS === 'undefined' || !Array.isArray(QUEST_GROUPS) || QUEST_GROUPS.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'mixed-empty';
+    empty.textContent = '未检测到任何任务数据（QUEST_GROUPS 为空）。';
+    root.appendChild(empty);
     return;
   }
 
   QUEST_GROUPS.forEach(group => {
     const block = document.createElement('div');
-    block.className = 'group-block';
+    block.className = 'quest-group';
 
-    const actions = document.createElement('div');
-    actions.className = 'group-actions';
-
-    const btnAll = document.createElement('button');
-    btnAll.textContent = '全选';
-    btnAll.addEventListener('click', () => {
-      group.quests.forEach(q => selectedQuestIds.add(q.id));
-      syncQuestCheckboxes();
-      recomputeDynamicNeeds();
-      renderTable();
-    });
-
-    const btnNone = document.createElement('button');
-    btnNone.textContent = '全不选';
-    btnNone.addEventListener('click', () => {
-      group.quests.forEach(q => selectedQuestIds.delete(q.id));
-      syncQuestCheckboxes();
-      recomputeDynamicNeeds();
-      renderTable();
-    });
-
-    actions.appendChild(btnAll);
-    actions.appendChild(btnNone);
-
-    const head = document.createElement('div');
-    head.className = 'group-title';
-    head.innerHTML = `<span>${group.name}</span>`;
-    head.appendChild(actions);
-
-    block.appendChild(head);
+    const title = document.createElement('div');
+    title.className = 'quest-group-title';
+    title.textContent = group.name || group.id || '未命名分类';
+    block.appendChild(title);
 
     const list = document.createElement('div');
-    list.className = 'checkbox-group';
+    list.className = 'quest-list';
 
-    group.quests.forEach(quest => {
-      const label = document.createElement('label');
-      label.className = 'checkbox-item';
+    (group.quests || []).forEach(quest => {
+      const row = document.createElement('label');
+      row.className = 'quest-item';
 
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.dataset.questId = quest.id;
-      cb.checked = selectedQuestIds.has(quest.id);
+
+      cb.checked = pendingQuestIds.has(quest.id);
 
       cb.addEventListener('change', () => {
-        if (cb.checked) selectedQuestIds.add(quest.id);
-        else selectedQuestIds.delete(quest.id);
-
-        recomputeDynamicNeeds();
-        renderTable();
+        if (cb.checked) pendingQuestIds.add(quest.id);
+        else pendingQuestIds.delete(quest.id);
       });
 
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(quest.name));
-      list.appendChild(label);
+      const span = document.createElement('span');
+      span.textContent = quest.name || quest.id || '未命名任务';
+
+      row.appendChild(cb);
+      row.appendChild(span);
+      list.appendChild(row);
     });
 
     block.appendChild(list);
@@ -1525,9 +1526,81 @@ function renderQuestPanel() {
   });
 }
 
-function syncQuestCheckboxes() {
+function syncQuestCheckboxesFromPending() {
+  document
+    .querySelectorAll('input[type="checkbox"][data-quest-id]')
+    .forEach(cb => {
+      cb.checked = pendingQuestIds.has(cb.dataset.questId);
+    });
+}
+
+/**
+ * 任务面板按钮：只改 pending；点“确认生效”才写入 selectedQuestIds 并重算/重绘
+ */
+function setupQuestPanelEvents() {
+  const qNone = document.getElementById('quest-select-none');
+  const qAll = document.getElementById('quest-select-all');
+  const qApply = document.getElementById('quest-apply');
+  const details = document.getElementById('quest-details');
+
+  if (qNone) {
+    qNone.addEventListener('click', () => {
+      pendingQuestIds = new Set();
+      syncQuestCheckboxesFromPending();
+    });
+  }
+
+  if (qAll) {
+    qAll.addEventListener('click', () => {
+      pendingQuestIds = getDefaultSelectedQuestIds(); // 你已有
+      syncQuestCheckboxesFromPending();
+    });
+  }
+
+  if (qApply) {
+    qApply.addEventListener('click', () => {
+      //确认：pending -> selected
+      selectedQuestIds = new Set(pendingQuestIds);
+
+      //生效后重算/重绘
+      recomputeDynamicNeeds();
+      renderTable();
+
+      //折叠面板
+      if (details) details.open = false;
+    });
+  }
+}
+
+
+
+function syncQuestCheckboxesFromPending() {
   document.querySelectorAll('input[type="checkbox"][data-quest-id]').forEach(cb => {
-    cb.checked = selectedQuestIds.has(cb.dataset.questId);
+    cb.checked = pendingQuestIds.has(cb.dataset.questId);
+  });
+}
+
+function setupQuestPanelEvents() {
+  const qNone = document.getElementById('quest-select-none');
+  const qAll = document.getElementById('quest-select-all');
+  const qApply = document.getElementById('quest-apply');
+  const details = document.getElementById('quest-details');
+
+  if (qNone) qNone.addEventListener('click', () => {
+    pendingQuestIds = new Set();
+    syncQuestCheckboxesFromPending();
+  });
+
+  if (qAll) qAll.addEventListener('click', () => {
+    pendingQuestIds = getDefaultSelectedQuestIds();
+    syncQuestCheckboxesFromPending();
+  });
+
+  if (qApply) qApply.addEventListener('click', () => {
+    selectedQuestIds = new Set(pendingQuestIds);
+    recomputeDynamicNeeds();
+    renderTable();
+    if (details) details.open = false;
   });
 }
 
@@ -1560,23 +1633,6 @@ function setupEvents() {
 
 
   // 任务面板全局按钮
-  const qNone = document.getElementById('quest-select-none');
-  const qAll = document.getElementById('quest-select-all');
-
-  if (qNone) qNone.addEventListener('click', () => {
-    selectedQuestIds = new Set();
-    syncQuestCheckboxes();
-    recomputeDynamicNeeds();
-    renderTable();
-  });
-
-  if (qAll) qAll.addEventListener('click', () => {
-    selectedQuestIds = getDefaultSelectedQuestIds();
-    syncQuestCheckboxes();
-    recomputeDynamicNeeds();
-    renderTable();
-  });
-
   function addNoteFromInput() {
     if (!addInput) return;
     const text = addInput.value.trim();
@@ -1630,12 +1686,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 初始化默认勾选
   selectedQuestIds = getDefaultSelectedQuestIds();
+  pendingQuestIds = new Set(selectedQuestIds);
 
   // 先算一遍动态需求
   recomputeDynamicNeeds();
 
   // 渲染面板
   renderQuestPanel();
+  setupQuestPanelEvents();
   renderMixedDonationPanel();
   setupMixedDonationPanelEvents();
 

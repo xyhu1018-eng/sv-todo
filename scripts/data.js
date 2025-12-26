@@ -754,23 +754,54 @@ const REMIX_BUNDLE_DEFS = [
   }
 ];
 
-// 任务：按大类分组
+// 任务：按大类分组（可扩展新增类别）
 const QUEST_GROUPS = [
   {
-    id: 'mainline',
-    name: '主线任务',
+    id: 'story',
+    name: '剧情任务',
     quests: [
       {
-        id: 'quest_example_1',
-        name: '示例任务1',
+        id: 'q_story_bridge',
+        name: '修理海滩桥',
         items: [
-          // { name: '木材', count: 20 },
-        ]
-      }
-    ]
+          { name: '木材', count: 300 },
+        ],
+        notes: [
+          { item: '木材', text: '前期可砍树；也可在罗宾处购买（示例）' },
+        ],
+      },
+      // ...更多剧情任务
+    ],
   },
-  // 继续添加其它大类...
+  {
+    id: 'special',
+    name: '特别任务',
+    quests: [
+      {
+        id: 'q_special_board_1',
+        name: '社区公告板特别委托（示例）',
+        items: [
+          { name: '硬木', count: 20 },
+          { name: '铁锭', count: 5 },
+        ],
+        notes: [
+          { item: '硬木', text: '秘密森林/硬木树桩；注意每日上限' },
+          { item: '铁锭', text: '如果缺煤，先做煤炭窑更稳' },
+        ],
+      },
+    ],
+  },
 ];
+
+// 默认勾选策略：你想默认全不选也行；下面先给“全不选”
+function getDefaultSelectedQuestIds() {
+  return new Set(); // 默认空：刷新后全不选
+  // 如果你想默认全选：把下面这段取消注释
+  // const s = new Set();
+  // QUEST_CATEGORIES.forEach(c => (c.quests || []).forEach(q => s.add(q.id)));
+  // return s;
+}
+
 
 // ============================
 // 默认勾选策略
