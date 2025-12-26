@@ -1470,7 +1470,6 @@ function setupMixedDonationPanelEvents() {
  * 渲染任务选择面板（两层：分类 -> 任务）
  * checkbox 只改 pendingQuestIds，不触发重算
  */
-let pendingQuestIds = new Set();
 
 function renderQuestPanel() {
   const root = document.getElementById('quest-panel');
