@@ -1013,8 +1013,18 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
         // 点击主格：只处理普通需求（needNum=0 时不绑定）
         if (needNum > 0) {
           td.addEventListener('click', () => {
-            const currentDone = item.done[type] || 0;
-            item.done[type] = (currentDone < needNum) ? (currentDone + 1) : 0;
+            const currentDone = Number(item.done[type] || 0);
+
+            // 单项需求 > 50：每次 +25；否则 +1
+            const step = (needNum > 50) ? 25 : 1;
+
+            // 仍然保持“点满后再点归零”的循环逻辑
+            if (currentDone >= needNum) {
+              item.done[type] = 0;
+            } else {
+              item.done[type] = Math.min(currentDone + step, needNum); // 不超上限
+            }
+
             renderTable();
           });
         }
