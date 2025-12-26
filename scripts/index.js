@@ -17,6 +17,10 @@ let questSourcesByItem = new Map();    // itemName -> [{groupName,questName,coun
 let donationNotesByItem = new Map(); // itemName -> [text,text...]
 let donationQualityNeedsByItem = new Map(); // itemName -> [{quality, count, groupName, bundleName}]
 
+// ===== 自定义需求：运行期新增列 & 备注（暂不存 cookie） =====
+let customDemandTypes = []; // 仅记录“自定义新增的列名”
+let customNotesByItem = new Map(); // itemName -> [text,text,...]
+
 // ===== tooltip =====
 function getTooltipEl() {
   return document.getElementById('tooltip');
@@ -916,8 +920,25 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
     nameSpan.textContent = item.name;
 
     if (item.note) {
-      nameTd.classList.add('has-note');
-      bindTooltipInteractions(nameSpan, () => item.note);
+      const extra = customNotesByItem.get(item.name) || [];
+      const hasAnyNote = Boolean(item.note) || (extra.length > 0);
+
+      if (hasAnyNote) {
+        nameTd.classList.add('has-note');
+        bindTooltipInteractions(nameSpan, () => {
+          const lines = [];
+
+          if (item.note) lines.push(String(item.note));
+
+          if (extra.length) {
+            if (lines.length) lines.push('');
+            lines.push('【自定义备注】');
+            extra.forEach(t => lines.push(`- ${t}`));
+          }
+
+          return lines.join('\n');
+        });
+      }
     }
 
     nameTd.appendChild(nameSpan);
@@ -1613,6 +1634,206 @@ function setupQuestPanelEvents() {
   });
 }
 
+function ensureDemandTypeExists(typeName) {
+  const t = (typeName || '').trim();
+  if (!t) return false;
+
+  if (!DEMAND_TYPES.includes(t)) {
+    DEMAND_TYPES.push(t); // const 数组允许 push
+  }
+  if (!customDemandTypes.includes(t) && t !== '献祭' && t !== '任务') {
+    customDemandTypes.push(t);
+  }
+
+  // 给所有 item 补齐字段
+  items.forEach(it => {
+    if (!it.needs) it.needs = {};
+    if (!it.baseNeeds) it.baseNeeds = {};
+    if (!it.done) it.done = {};
+
+    if (typeof it.needs[t] === 'undefined') it.needs[t] = 0;
+    if (typeof it.baseNeeds[t] === 'undefined') it.baseNeeds[t] = 0;
+    if (typeof it.done[t] === 'undefined') it.done[t] = 0;
+  });
+
+  return true;
+}
+
+function ensureItemExistsByName(itemName) {
+  const name = (itemName || '').trim();
+  if (!name) return null;
+
+  let it = items.find(x => (x.name || '').trim() === name);
+  if (it) return it;
+
+  // 创建临时物品（刷新消失，后续可接 cookie）
+  const needs = {};
+  const baseNeeds = {};
+  const done = {};
+  DEMAND_TYPES.forEach(tp => {
+    needs[tp] = 0;
+    baseNeeds[tp] = 0;
+    done[tp] = 0;
+  });
+
+  it = {
+    id: 'tmp_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+    name,
+    season: '',
+    category: '',
+    favorite: '',
+    remark: '',
+    tags: [],
+    needs,
+    baseNeeds,
+    note: '',
+    noteParams: null,
+    done,
+  };
+
+  items.push(it);
+  return it;
+}
+
+function addCustomNote(itemName, text) {
+  const name = (itemName || '').trim();
+  const t = (text || '').trim();
+  if (!name || !t) return;
+
+  if (!customNotesByItem.has(name)) customNotesByItem.set(name, []);
+  customNotesByItem.get(name).push(t);
+}
+
+function renderCustomDemandPanel() {
+  const root = document.getElementById('custom-demand-panel');
+  if (!root) return;
+
+  const rowsEl = document.getElementById('custom-demand-rows');
+  const addRowBtn = document.getElementById('custom-demand-add-row');
+  const applyBtn = document.getElementById('custom-demand-apply');
+  const addTypeBtn = document.getElementById('custom-demand-type-add');
+  const typeNameInput = document.getElementById('custom-demand-type-name');
+  const detailsEl = document.getElementById('custom-demand-details');
+
+  function buildTypeOptionsHtml() {
+    if (!customDemandTypes.length) {
+      return `<option value="">（请先添加需求列）</option>`;
+    }
+    return [
+      `<option value="">选择需求列…</option>`,
+      ...customDemandTypes.map(t => `<option value="${t}">${t}</option>`)
+    ].join('');
+  }
+
+  function addRow(prefill = {}) {
+    if (!rowsEl) return;
+
+    const row = document.createElement('div');
+    row.className = 'custom-demand-row';
+
+    row.innerHTML = `
+      <select class="custom-demand-type">
+        ${buildTypeOptionsHtml()}
+      </select>
+      <input class="custom-demand-item" type="text" placeholder="物品名（允许新物品）" />
+      <input class="custom-demand-count" type="number" min="1" step="1" placeholder="数量" />
+      <input class="custom-demand-note" type="text" placeholder="备注（可选）" />
+      <button class="btn-del" type="button">删除</button>
+    `;
+
+    const sel = row.querySelector('.custom-demand-type');
+    const itemInput = row.querySelector('.custom-demand-item');
+    const countInput = row.querySelector('.custom-demand-count');
+    const noteInput = row.querySelector('.custom-demand-note');
+    const delBtn = row.querySelector('.btn-del');
+
+    if (sel && prefill.type) sel.value = prefill.type;
+    if (itemInput && prefill.item) itemInput.value = prefill.item;
+    if (countInput && prefill.count) countInput.value = String(prefill.count);
+    if (noteInput && prefill.note) noteInput.value = prefill.note;
+
+    if (delBtn) delBtn.addEventListener('click', () => row.remove());
+
+    rowsEl.appendChild(row);
+  }
+
+  function refreshAllTypeSelects() {
+    if (!rowsEl) return;
+    rowsEl.querySelectorAll('select.custom-demand-type').forEach(sel => {
+      const prev = sel.value;
+      sel.innerHTML = buildTypeOptionsHtml();
+      // 尝试保留原选择
+      if (customDemandTypes.includes(prev)) sel.value = prev;
+    });
+  }
+
+  // 绑定：新增需求列
+  if (addTypeBtn && typeNameInput) {
+    addTypeBtn.onclick = () => {
+      const t = (typeNameInput.value || '').trim();
+      if (!t) return;
+
+      ensureDemandTypeExists(t);
+
+      // 新增列后：刷新筛选区 + 所有下拉
+      renderFilterOptions();
+      refreshAllTypeSelects();
+      renderTable();
+
+      typeNameInput.value = '';
+    };
+  }
+
+  // 绑定：加一行
+  if (addRowBtn) {
+    addRowBtn.onclick = () => addRow();
+  }
+
+  // 绑定：确认生效
+  if (applyBtn) {
+    applyBtn.onclick = () => {
+      if (!rowsEl) return;
+
+      const rows = Array.from(rowsEl.querySelectorAll('.custom-demand-row'));
+      rows.forEach(r => {
+        const type = (r.querySelector('.custom-demand-type')?.value || '').trim();
+        const itemName = (r.querySelector('.custom-demand-item')?.value || '').trim();
+        const countRaw = r.querySelector('.custom-demand-count')?.value;
+        const note = (r.querySelector('.custom-demand-note')?.value || '').trim();
+
+        const count = Number(countRaw || 0);
+
+        if (!type || !itemName || !Number.isFinite(count) || count <= 0) return;
+
+        ensureDemandTypeExists(type);
+
+        const it = ensureItemExistsByName(itemName);
+        if (!it) return;
+
+        // 写入“基础需求”，让它在 recomputeDynamicNeeds 后仍保留
+        it.baseNeeds[type] = Number(it.baseNeeds[type] || 0) + count;
+        it.needs[type] = Number(it.needs[type] || 0) + count;
+
+        if (note) {
+          addCustomNote(it.name, `【${type}】${note}`);
+        }
+      });
+
+      // 重算（把献祭/任务动态部分重新叠上去），并刷新 UI
+      recomputeDynamicNeeds();
+      renderFilterOptions();
+      renderTable();
+
+      // 自动折叠
+      if (detailsEl) detailsEl.open = false;
+    };
+  }
+
+  // 初始化：至少给一行
+  if (rowsEl && rowsEl.children.length === 0) addRow();
+}
+
+
 function setupEvents() {
   const resetBtn = document.getElementById('reset-all-btn');
   if (resetBtn) {
@@ -1705,6 +1926,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupQuestPanelEvents();
   renderMixedDonationPanel();
   setupMixedDonationPanelEvents();
+  renderCustomDemandPanel();
 
   // 原有 UI
   renderFilterOptions();

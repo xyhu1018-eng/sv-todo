@@ -521,3 +521,64 @@ td.item-name, th.col-item { width: 6em; }
   font-size: 12px;
   color: #888;
 }
+
+/* ============ 自定义需求 ============ */
+.custom-demand-top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-demand-addtype {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.custom-demand-addtype input[type="text"] {
+  flex: 1;
+  min-width: 220px;
+  padding: 6px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.custom-demand-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-demand-row {
+  display: grid;
+  grid-template-columns: 10em 1fr 6em 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.custom-demand-row select,
+.custom-demand-row input {
+  padding: 6px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.custom-demand-row input[type="number"] {
+  width: 100%;
+}
+
+.custom-demand-row .btn-del {
+  padding: 6px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .custom-demand-row {
+    grid-template-columns: 1fr;
+  }
+}

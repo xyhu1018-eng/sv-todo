@@ -97,6 +97,32 @@
 
         <div id="quest-panel" class="panel-body"></div>
       </details>
+      <details id="custom-demand-details" class="gen-panel">
+        <summary>自定义需求</summary>
+
+        <div class="hint">
+          你可以新增任意“需求列”（自定义命名），并在下面添加物品与数量。
+          物品名允许不在 CSV 列表中：不在的话会创建一个临时物品行加入主表（刷新会消失，后续可接 cookie）。
+          备注会加入物品名的悬停备注里。
+        </div>
+
+        <div class="panel-body" id="custom-demand-panel">
+          <div class="custom-demand-top">
+            <div class="custom-demand-addtype">
+              <input id="custom-demand-type-name" type="text" placeholder="新增需求列名称（例如：温室 / 骷髅洞 / 建筑材料）" />
+              <button id="custom-demand-type-add">＋ 添加需求列</button>
+            </div>
+          </div>
+
+          <div id="custom-demand-rows" class="custom-demand-rows"></div>
+
+          <div class="panel-actions">
+            <button id="custom-demand-add-row">＋ 增加一条需求</button>
+            <button id="custom-demand-apply" class="primary">确认生效</button>
+          </div>
+        </div>
+      </details>
+
 
     </section>
 
