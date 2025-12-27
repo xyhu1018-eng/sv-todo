@@ -176,7 +176,6 @@ function isItemCompleteUnderFilter(item, filteredNeedTypes) {
 
   // 新增：总需求为0时，允许手动置底
   if (need === 0) return !!item.zeroMuted;
-  
   const baseComplete = need > 0 && done >= need;
 
   const types =
@@ -403,7 +402,7 @@ async function loadItemsFromCSV() {
       noteParams: noteInfo.params,
       water: record.water || '',
       weather: record.weather || '',
-      done
+      done,
       zeroMuted: false,
     };
   });
