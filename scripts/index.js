@@ -174,7 +174,7 @@ function isDonationQualityComplete(item) {
 function isItemCompleteUnderFilter(item, filteredNeedTypes) {
   const { need, done } = getTotalsForItem(item, filteredNeedTypes);
 
-  // 新增：总需求为0时，允许手动置底
+  // 新增：总需求为0时，允许手动置底 
   if (need === 0) return !!item.zeroMuted;
   const baseComplete = need > 0 && done >= need;
 
