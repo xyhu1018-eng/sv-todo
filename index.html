@@ -52,6 +52,29 @@
 
       </div>
 
+      <!-- 仅鱼类视图提示（默认隐藏） -->
+      <div id="fish-view-banner" class="fish-banner" style="display:none;">
+        已进入“只看鱼类”。提示：对总需求为 “-” 的物品，可以点击 “-” 将整行灰掉并置底，用于标记图鉴收集。
+      </div>
+
+      <!-- 钓鱼专属筛选：水域 / 天气（默认全选，只有钓鱼类型时才生效） -->
+      <div class="filter-group" id="fish-extra-filters">
+        <div class="filter-block">
+          <span class="filter-label">水域：</span>
+          <div id="filter-water-group" class="checkbox-group">
+            <!-- JS 动态填充 -->
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <span class="filter-label">天气：</span>
+          <div id="filter-weather-group" class="checkbox-group">
+            <!-- JS 动态填充 -->
+          </div>
+        </div>
+      </div>
+
+
       <div class="actions">
         <button id="reset-all-btn">重置全部进度</button>
       </div>

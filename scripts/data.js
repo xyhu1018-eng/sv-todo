@@ -1007,6 +1007,15 @@ const QUEST_GROUPS = [
     name: '姜岛任务',
     quests: [
       {
+        id: 'gin_qz',
+        name: '姜岛前置',
+        items: [
+          { name: '硬木', count: 200 },
+          { name: '电池组', count: 5 },
+          { name: '铱锭', count: 5 },
+        ],
+      },
+      {
         id: 'gin_bsn',
         name: '宝石鸟',
         items: [
@@ -1022,9 +1031,6 @@ const QUEST_GROUPS = [
         name: '美人鱼解密',
         items: [
           { name: '长笛块', count: 5 },
-        ],
-        notes: [
-          { item: '土豆', text: '留12个，等任务开始后酿造' },
         ],
       },
       {

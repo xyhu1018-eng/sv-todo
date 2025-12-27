@@ -173,6 +173,10 @@ function isDonationQualityComplete(item) {
 
 function isItemCompleteUnderFilter(item, filteredNeedTypes) {
   const { need, done } = getTotalsForItem(item, filteredNeedTypes);
+
+  // 新增：总需求为0时，允许手动置底
+  if (need === 0) return !!item.zeroMuted;
+  
   const baseComplete = need > 0 && done >= need;
 
   const types =
@@ -241,6 +245,46 @@ function getCategoryTokens(item) {
     .map(s => s.trim())
     .filter(Boolean);
 }
+
+function splitTokens(raw) {
+  const s = (raw || '').trim();
+  if (!s) return [];
+  return s
+    .split(/[;、\/\s]+/)
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function getWaterTokens(item) {
+  return splitTokens(item.water);
+}
+function getWeatherTokens(item) {
+  return splitTokens(item.weather);
+}
+
+function isFishingItem(item) {
+  const cats = getCategoryTokens(item);
+  return cats.includes('钓鱼');
+}
+
+function getAllWaters() {
+  const set = new Set();
+  items.forEach(it => {
+    if (!isFishingItem(it)) return;
+    getWaterTokens(it).forEach(w => set.add(w));
+  });
+  return Array.from(set);
+}
+
+function getAllWeathers() {
+  const set = new Set();
+  items.forEach(it => {
+    if (!isFishingItem(it)) return;
+    getWeatherTokens(it).forEach(w => set.add(w));
+  });
+  return Array.from(set);
+}
+
 
 // =============== 状态加载 & 保存 ===============
 
@@ -357,7 +401,10 @@ async function loadItemsFromCSV() {
       baseNeeds,
       note: noteInfo.text,
       noteParams: noteInfo.params,
+      water: record.water || '',
+      weather: record.weather || '',
       done
+      zeroMuted: false,
     };
   });
 }
@@ -696,8 +743,13 @@ function renderFilterOptions() {
   const seasonGroup = document.getElementById('filter-season-group');
   const categoryGroup = document.getElementById('filter-category-group');
   const needGroup = document.getElementById('filter-need-group');
+  const waterGroup = document.getElementById('filter-water-group');
+  const weatherGroup = document.getElementById('filter-weather-group');
+
 
   if (!seasonGroup || !categoryGroup || !needGroup) return;
+  if (waterGroup) waterGroup.innerHTML = '';
+  if (weatherGroup) weatherGroup.innerHTML = '';
 
   seasonGroup.innerHTML = '';
   categoryGroup.innerHTML = '';
@@ -744,7 +796,140 @@ function renderFilterOptions() {
     label.appendChild(document.createTextNode(type));
     needGroup.appendChild(label);
   });
+
+  // ===== 钓鱼专属：水域/天气 =====
+  if (waterGroup) {
+    getAllWaters().forEach(w => {
+      const label = document.createElement('label');
+      label.className = 'checkbox-item';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = w;
+      cb.checked = true;
+
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(w));
+      waterGroup.appendChild(label);
+    });
+  }
+
+  if (weatherGroup) {
+    getAllWeathers().forEach(w => {
+      const label = document.createElement('label');
+      label.className = 'checkbox-item';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = w;
+      cb.checked = true;
+
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(w));
+      weatherGroup.appendChild(label);
+    });
+  }
+
+  // ===== 给“钓鱼”后面挂：只看鱼类/返回 =====
+  attachFishOnlyButton();
+
 }
+
+let fishOnlyViewActive = false;
+let fishOnlyPrevState = null;
+
+function setCheckboxGroupChecked(containerId, allowedValuesSetOrNull) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    if (!allowedValuesSetOrNull) {
+      cb.checked = true;
+      return;
+    }
+    cb.checked = allowedValuesSetOrNull.has(cb.value);
+  });
+}
+
+function captureCurrentFilterState() {
+  return {
+    seasons: new Set(getCheckedValues('filter-season-group')),
+    categories: new Set(getCheckedValues('filter-category-group')),
+    needs: new Set(getCheckedValues('filter-need-group')),
+    waters: new Set(getCheckedValues('filter-water-group')),
+    weathers: new Set(getCheckedValues('filter-weather-group')),
+  };
+}
+
+function restoreFilterState(state) {
+  if (!state) return;
+  setCheckboxGroupChecked('filter-season-group', state.seasons);
+  setCheckboxGroupChecked('filter-category-group', state.categories);
+  setCheckboxGroupChecked('filter-need-group', state.needs);
+  setCheckboxGroupChecked('filter-water-group', state.waters);
+  setCheckboxGroupChecked('filter-weather-group', state.weathers);
+}
+
+function updateFishBanner() {
+  const banner = document.getElementById('fish-view-banner');
+  if (!banner) return;
+  banner.style.display = fishOnlyViewActive ? 'block' : 'none';
+}
+
+function enterFishOnlyView() {
+  fishOnlyPrevState = captureCurrentFilterState();
+  fishOnlyViewActive = true;
+
+  // 仅保留“钓鱼”
+  setCheckboxGroupChecked('filter-category-group', new Set(['钓鱼']));
+
+  updateFishBanner();
+  renderTable();
+}
+
+function exitFishOnlyView() {
+  fishOnlyViewActive = false;
+  restoreFilterState(fishOnlyPrevState);
+  fishOnlyPrevState = null;
+
+  updateFishBanner();
+  renderTable();
+}
+
+function toggleFishOnlyView() {
+  if (!fishOnlyViewActive) enterFishOnlyView();
+  else exitFishOnlyView();
+  attachFishOnlyButton(); // 更新按钮文案
+}
+
+function attachFishOnlyButton() {
+  const group = document.getElementById('filter-category-group');
+  if (!group) return;
+
+  // 防止重复挂载：先删旧按钮
+  group.querySelectorAll('button.fish-only-btn').forEach(b => b.remove());
+
+  // 找到 value === '钓鱼' 的那一项，挂在 label 后面
+  const fishingCb = Array.from(group.querySelectorAll('input[type="checkbox"]'))
+    .find(cb => cb.value === '钓鱼');
+
+  if (!fishingCb) return;
+
+  const label = fishingCb.closest('label');
+  if (!label) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'fish-only-btn';
+  btn.textContent = fishOnlyViewActive ? '返回' : '只看鱼类';
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFishOnlyView();
+  });
+
+  label.appendChild(btn);
+}
+
 
 // =============== 表头渲染 ===============
 
@@ -865,6 +1050,9 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
   const selectedSeasons = getCheckedValues('filter-season-group');
   const selectedCategories = getCheckedValues('filter-category-group');
   const selectedNeedTypes = getCheckedValues('filter-need-group');
+  const selectedWaters = getCheckedValues('filter-water-group');
+  const selectedWeathers = getCheckedValues('filter-weather-group');
+
 
   // 画对应表头
   renderHeaderTo(headerRowId, selectedNeedTypes, showTagColumn);
@@ -892,6 +1080,22 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
       }
     }
 
+    // ===== 钓鱼专属：水域/天气过滤（仅对“钓鱼”物品生效）=====
+    if (isFishingItem(item)) {
+      const waterTokens = getWaterTokens(item);
+      if (selectedWaters.length > 0 && waterTokens.length > 0) {
+        const ok = waterTokens.some(w => selectedWaters.includes(w));
+        if (!ok) return false;
+      }
+
+      const weatherTokens = getWeatherTokens(item);
+      if (selectedWeathers.length > 0 && weatherTokens.length > 0) {
+        const ok = weatherTokens.some(w => selectedWeathers.includes(w));
+        if (!ok) return false;
+      }
+    }
+
+
     return true;
   });
 
@@ -909,6 +1113,13 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
     if (isItemCompleteUnderFilter(item, selectedNeedTypes)) {
       tr.classList.add('row-complete');
     }
+
+    // 总需求为0但被手动标记置底（鱼类图鉴用）
+    const totalsNow = getTotalsForItem(item, selectedNeedTypes);
+    if (totalsNow.need === 0 && item.zeroMuted) {
+      tr.classList.add('row-zero-muted');
+    }
+
 
     // 物品名
     const nameTd = document.createElement('td');
@@ -1129,8 +1340,26 @@ function renderTableInto(tbodyId, headerRowId, list, showTagColumn = true) {
     const { need, done } = getTotalsForItem(item, selectedNeedTypes);
     const totalTd = document.createElement('td');
     totalTd.classList.add('total-cell');
-    totalTd.textContent = need > 0 ? `${done}/${need}` : '-';
+
+    if (need > 0) {
+      totalTd.textContent = `${done}/${need}`;
+    } else {
+      // need === 0：显示 '-'，并允许点击把整行“灰掉置底”（fish 图鉴标记）
+      totalTd.textContent = '-';
+      totalTd.classList.add('clickable', 'no-need');
+
+      // 让 '-' 也能提示“可点”
+      totalTd.title = '点击可标记该物品为已收集（灰显置底）；再点一次取消';
+
+      totalTd.addEventListener('click', (e) => {
+        e.stopPropagation();
+        item.zeroMuted = !item.zeroMuted;
+        renderTable();
+      });
+    }
+
     tr.appendChild(totalTd);
+
 
     // 操作列：重置本行
     // const actionTd = document.createElement('td');
@@ -1840,7 +2069,8 @@ function setupEvents() {
     resetBtn.addEventListener('click', resetAllProgress);
   }
 
-  ['filter-season-group', 'filter-category-group', 'filter-need-group'].forEach(
+  ['filter-season-group', 'filter-category-group', 'filter-need-group', 'filter-water-group', 'filter-weather-group'].forEach(
+.forEach(
     id => {
       const container = document.getElementById(id);
       if (!container) return;

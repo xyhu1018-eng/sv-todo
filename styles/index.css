@@ -582,3 +582,38 @@ td.item-name, th.col-item { width: 6em; }
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== 鱼类视图提示条 ===== */
+.fish-banner{
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff8dc;
+  border: 1px solid #f0d58c;
+  color: #6b4e00;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+/* ===== 总需求为0时的“手动置底”行（不加删除线） ===== */
+tr.row-zero-muted{
+  background: #f3f3f3;
+  color: #999;
+}
+tr.row-zero-muted td{
+  text-decoration: none !important;
+}
+
+/* ===== “只看鱼类/返回”小按钮（挂在钓鱼后面） ===== */
+.fish-only-btn{
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #d0d0d0;
+  background: #fafafa;
+  cursor: pointer;
+}
+.fish-only-btn:hover{
+  background: #f0f0f0;
+}
