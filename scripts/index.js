@@ -2069,7 +2069,6 @@ function setupEvents() {
   }
 
   ['filter-season-group', 'filter-category-group', 'filter-need-group', 'filter-water-group', 'filter-weather-group'].forEach(
-.forEach(
     id => {
       const container = document.getElementById(id);
       if (!container) return;
